@@ -32,6 +32,7 @@ public:
 
   int CheckRC (int rc) {
     if (rc < 0) {
+      Tcl_ResetResult(tclInterp);
       Tcl_AppendResult(tclInterp, xbase->GetErrorMessage(rc), NULL);
       return TCL_ERROR;                                  	
     }

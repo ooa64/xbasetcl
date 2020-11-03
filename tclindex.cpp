@@ -11,14 +11,14 @@
 int TclIndex::Command (int objc, struct Tcl_Obj * CONST objv[])
 {
   static char *commands[] = {
-    "create", "open", "close", "reindex", 
+    "create", "open", "close", "reindex", "flush",
     "status", "name", "dbf",   "type",
     "first",  "last", "prev",  "next", "find",
     "filter",
     0L
   };
   enum commands {
-    cmCreate, cmOpen, cmClose, cmReindex, 
+    cmCreate, cmOpen, cmClose, cmReindex, cmFlush,
     cmStatus, cmName, cmDbf,   cmType,
     cmFirst,  cmLast, cmPrev,  cmNext, cmFind,
     cmFilter
@@ -41,46 +41,45 @@ int TclIndex::Command (int objc, struct Tcl_Obj * CONST objv[])
 
     if (objc < 4 || objc > 7) {
       Tcl_WrongNumArgs(interp, 2, objv, 
-		       "filename expression ?-unique? ?-overlay?");
+		       "?-unique? ?-overlay? filename expression");
       return TCL_ERROR;
     } else {
-	int rc, unique = XB_NOT_UNIQUE, overlay = 0;
-	const char * indexname;
-        const char * expression;
-
-	for (int i = 4; i < objc; i++) {
-	  if (strcmp(Tcl_GetString(objv[i]), "-unique") == 0) {
-	    unique = XB_UNIQUE;
-	  } else if (strcmp(Tcl_GetString(objv[i]), "-overlay") == 0) {
-	    overlay = 1;
-	  } else {
-	    Tcl_AppendResult(interp, "bad option ", Tcl_GetString(objv[i]), NULL);
-	    return TCL_ERROR;
+	  int rc, unique = XB_NOT_UNIQUE, overlay = 0;
+	  const char * indexname;
+	  const char * expression;
+	  Tcl_DString s;
+	  
+	  for (int i = 2; i < (objc - 2); i++) {
+		if (strcmp(Tcl_GetString(objv[i]), "-unique") == 0) {
+		  unique = XB_UNIQUE;
+		} else if (strcmp(Tcl_GetString(objv[i]), "-overlay") == 0) {
+		  overlay = 1;
+		} else {
+		  Tcl_AppendResult(interp, "bad option ", Tcl_GetString(objv[i]), NULL);
+		  return TCL_ERROR;
+		}
 	  }
-	}
-
-	Tcl_DString s;
-
-	indexname = Tcl_TranslateFileName(interp, Tcl_GetString(objv[2]), &s);
-	if (indexname == NULL) {
-	  return TCL_ERROR;
-	}
-	
-	expression = 
-	  ((TclDbf *)pParent)->DecodeTclString(Tcl_GetString(objv[3]));
-	
-	rc = index->CreateIndex(indexname, expression, unique, overlay);
-
-	Tcl_DStringFree(&s);
-
-	if (CheckRC(rc) != TCL_OK) {
-	  return TCL_ERROR;
-	}
+	  
+	  indexname = Tcl_TranslateFileName(interp, Tcl_GetString(objv[objc - 2]), &s);
+	  if (indexname == NULL) {
+		return TCL_ERROR;
+	  }
+	  
+	  expression = 
+		((TclDbf *)pParent)->DecodeTclString(Tcl_GetString(objv[objc - 1]));
+	  
+	  rc = index->CreateIndex(indexname, expression, unique, overlay);
+	  
+	  Tcl_DStringFree(&s);
+	  
+	  if (CheckRC(rc) != TCL_OK) {
+		return TCL_ERROR;
+	  }
     }
     Tcl_AppendResult(interp, (const char *)index->IndexName, NULL);
-
+	
     break;
-
+	
   case cmOpen:
 
     if (objc != 3) {
@@ -138,6 +137,17 @@ int TclIndex::Command (int objc, struct Tcl_Obj * CONST objv[])
       return TCL_ERROR;
     } else if (CheckRC(index->ReIndex()) != TCL_OK) {
       return TCL_ERROR;
+    }
+
+    break;
+
+  case cmFlush:
+
+    if (objc != 2) {
+      Tcl_WrongNumArgs(interp, 2, objv, NULL);
+      return TCL_ERROR;
+    } else {
+	  index->Flush();
     }
 
     break;

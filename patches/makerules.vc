@@ -131,6 +131,6 @@ conlibsdll = $(libcdll) $(baselibs)
     $(cc32) -GX $(cdebug) $(cflags) $(cvarsdll) $(include32) $(DEFINES) $<
 
 .c.obj ::
-    $(cc32) -GX $(cdebug) $(cflags) $(cvarsdll) $(include32) $(DEFINES) $<
+    $(cc32) $(cdebug) $(cflags) $(cvarsdll) $(include32) $(DEFINES) $<
 
 .SUFFIXES: .cpp .c

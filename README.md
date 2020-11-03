@@ -2,7 +2,7 @@
 
 Tcl interface to the XBASE library (http://linux.techass.com/projects/xdb).
 
-xbasetcl 1.0 alpha 2 - 04.09.2002
+xbasetcl 1.0 alpha 2
 
 Tested: 
 
@@ -25,4 +25,4 @@ History:
     1.0a2 2002/09/03 - encoding, indexes, filters.
     1.0a1 2002/06/02 - basic dbf functionality.
 
-Oleg Oleinick, oleg@mmf.dp.ua.
+Oleg Oleinick, ooa64@ua.fm

@@ -1,0 +1,107 @@
+# makefile.vc for nmake
+# used for hello.cpp
+#
+# Possible uses are:
+#
+#  nmake -nologo -f makefile.vc [DEBUG=1]
+#      Makes a new style Stubs extension that doesn't need to resolve
+#      imports at loadtime and is NOT stuck to a tcl8X.dll by name.
+#
+#  nmake -nologo -f makefile.vc USE_TCL_STUBS=0 [DEBUG=1]
+#      Makes an old style extension needing tcl8X.dll by name.
+#
+#  nmake -nologo -f makefile.vc USE_TCL_STUBS=0 STATIC_BUILD=1 [DEBUG=1]
+#      Creates a static library.
+#
+#  nmake -nologo -f makefile.vc USE_TCL_STUBS=1 STATIC_BUILD=1 [DEBUG=1]
+#      Creates a static library that uses Stubs.  Technically this
+#      is legal, but why you might want this is the question.  Could
+#      allow for an addition layer of abstraction such that any
+#      other extension writing to the 'master' Stubs table will
+#      affect this extension too.
+#      [advanced topic for deep core hackers]
+#
+
+LIBRARY = hellotcl
+
+LIBRARY_OBJs = hellotcl.obj tclcmd.obj 
+
+# Edit this to point to where you installed Tcl.
+#
+TCLROOT	 = c:\progra~1\tcl
+TCLROOT	 = c:\mnc\mtcl1.2
+
+INCLUDES = -I"$(TCLROOT)\include"
+
+# By convention, all extension should be compiled for thread support.
+#DEFINES = -DTCL_THREADS=1
+
+!ifndef STATIC_BUILD
+STATIC_BUILD = 0
+!endif
+
+!ifndef USE_TCL_STUBS
+USE_TCL_STUBS = 1
+!endif
+
+!ifndef DEBUG
+DEBUG = 0
+!endif
+
+!if $(DEBUG) == 1
+DBG	   = d
+DBG_CFLAGS = -ZI -GZ -D_DEBUG
+DBG_LFLAGS = -debug -debugtype:cv
+!else
+DBG	   =
+DBG_CFLAGS =
+DBG_LFLAGS = -release -opt:ref
+!endif
+
+!if $(STATIC_BUILD) == 1
+EXT	= lib
+DEFINES	= $(DEFINES) -DSTATIC_BUILD
+CFLAGS	= -W3 -WX -MT$(DBG) -Zl $(DBG_CFLAGS)
+LFLAGS	= -warn:3 
+LINK	= lib
+!else
+EXT	= dll
+CFLAGS	= -W3 -WX -LD -MD$(DBG) $(DBG_CFLAGS)
+LFLAGS	= -warn:1 -dll -libpath:"$(TCLROOT)\lib" $(DBG_LFLAGS)
+LINK	= link
+!endif
+
+!if $(USE_TCL_STUBS) == 1
+DEFINES	= $(DEFINES) -DUSE_TCL_STUBS
+!endif
+
+TARGET = $(LIBRARY)$(DBG).$(EXT)
+
+all : $(TARGET)
+
+test : all
+	 tclsh hellotcl.tcl
+
+clean :
+	-del *.obj
+	-del *.dll
+	-del *.exp
+	-del *.idb
+	-del *.ilk
+	-del *.lib
+	-del *.pdb
+
+$(TARGET) : $(LIBRARY_OBJs)
+	$(LINK) -nologo -out:$@ $(LFLAGS) $(LIBRARY_OBJs)
+
+.cpp.obj ::
+	cl -nologo -c -GX $(INCLUDES) $(DEFINES) $(CFLAGS) @<<
+$<
+<<
+
+.c.obj ::
+	cl -nologo -c $(INCLUDES) $(DEFINES) $(CFLAGS) @<<
+$<
+<<
+
+.SUFFIXES: .cpp .c

@@ -8,12 +8,24 @@
 #
 # $(XBASESRC)\xbase\makerules.vc  - common defines
 # $(XBASESRC)\xbase\xbase.h       - header
-# $(XBASESRC)\xbase\xbases.lib    - static lib
-# $(XBASESRC)\xbase\xbasesd.lib   - static debug lib
+# $(XBASESRC)\xbase\xbaseXXs.lib    - static lib
+# $(XBASESRC)\xbase\xbaseXXsd.lib   - static debug lib
 #
 
+### Defaults
+
 !ifndef XBASESRC
-XBASESRC = ..\xbase-2.1.0-cvs20020509 
+XBASESRC = ..\xbase-2.1.0-cvs20020906
+!endif
+
+!include "$(XBASESRC)\xbase\makerules.vc"
+
+!ifndef XBASEVERSION
+XBASEVERSION = 21
+!endif
+
+!ifndef XBASESTATIC
+XBASESTATIC = 1
 !endif
 
 !ifndef TCLROOT
@@ -24,15 +36,6 @@ TCLROOT	 = c:\progra~1\tcl
 TCLVERSION = 83
 !endif
 
-###
-
-!include "$(XBASESRC)\xbase\makerules.vc"
-
-NAMEPREFIX = xbasetcl
-VERSION = 10
-NAME = $(NAMEPREFIX)$(DBGX)$(VERSION)
-LIB = $(NAME).lib
-
 !ifndef USE_TCL_STUBS
 !if "$(TCLVERSION)" == "80"
 USE_TCL_STUBS = 0
@@ -41,11 +44,17 @@ USE_TCL_STUBS = 1
 !endif
 !endif
 
-###
+
+### Defines
+
+NAMEPREFIX = xbasetcl
+VERSION = 10
+NAME = $(NAMEPREFIX)$(VERSION)$(DBGX)
+LIB = $(NAME).lib
 
 DEFINES = $(DEFINES) -I"$(TCLROOT)\include" -I"$(XBASESRC)"
-
-DEFINES = $(DEFINES) -D__VISUALC__ -D__WIN32__ -D__MSVC__
+LIBS = $(LIBS) -libpath:"$(XBASESRC)\xbase" -libpath:"$(TCLROOT)\lib"
+LIBS = $(LIBS) msvcirt$(DBGX).lib
 
 !if "$(DEBUG)" == "1"
 DEFINES = $(DEFINES) -DXBASE_DEBUG 
@@ -55,27 +64,22 @@ DEFINES = $(DEFINES) -DTCL_MEM_DEBUG=1
 
 !if "$(STATIC_BUILD)" == "1"
 DEFINES	= $(DEFINES) -DSTATIC_BUILD
+!endif
+
+!if "$(XBASESTATIC)" == "1"
+LIBS = $(LIBS) xbase$(XBASEVERSION)s$(DBGX).lib
 !else
-DEFINES = $(DEFINES) -DXBMAKINGDLL
+DEFINES = $(DEFINES) -DXBUSINGDLL
+LIBS = $(LIBS) xbase$(XBASEVERSION)$(DBGX).lib
 !endif
 
 !if $(USE_TCL_STUBS) == 1
 DEFINES	= $(DEFINES) -DUSE_TCL_STUBS=1
-!endif
-
-###
-
-LIBS = $(LIBS) -libpath:"$(XBASESRC)\xbase" xbases$(DBGX).lib
-
-LIBS = $(LIBS) -libpath:"$(TCLROOT)\lib"
-!if $(USE_TCL_STUBS) == 1
 #LIBS	= $(LIBS) tclstub$(TCLVERSION)$(DBGX).lib
 LIBS	= $(LIBS) tclstub$(TCLVERSION).lib
 !else
 LIBS	= $(LIBS) tcl$(TCLVERSION)$(DBGX).lib
 !endif
-
-LIBS = $(LIBS) msvcirt$(DBGX).lib 
 
 OBJS = \
 	xbasetcl.obj \
@@ -84,6 +88,8 @@ OBJS = \
 	tcldbf.obj \
 	tclindex.obj \
 	tclfilter.obj
+
+# Rules
 
 all : $(LIB)
 
@@ -96,7 +102,7 @@ clean :
 
 test : all
 	set XBASEDLL=.\$(NAME).dll
-	$(TCLROOT)\bin\tclsh$(TCLVERSION)$(DBGX) xbasetcl.test -verbose bps
+	$(TCLROOT)\bin\tclsh$(TCLVERSION)$(DBGX) xbasetcl.test
 
 !if "$(STATIC_BUILD)" == "1"
 
@@ -110,6 +116,3 @@ $(NAME).dll: $(OBJS)
     $(link32) $(ldebug) $(dlllflags) -out:$@ $(guilibsdll) $(LIBS) $(OBJS)
 
 !endif
-
-
-
