@@ -2,7 +2,7 @@
 
 Tcl interface to the XBASE library (http://linux.techass.com/projects/xdb).
 
-xbasetcl 1.0 alpha 2
+xbasetcl 1.0 alpha 3
 
 Tested: 
 
@@ -22,6 +22,7 @@ Todo:
 
 History:
 
+    1.0a3 2002/11/03 - flush command, fixes, samples.
     1.0a2 2002/09/03 - encoding, indexes, filters.
     1.0a1 2002/06/02 - basic dbf functionality.
 
