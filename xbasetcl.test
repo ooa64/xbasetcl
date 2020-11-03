@@ -1,0 +1,504 @@
+if {[catch {package require tcltest}]} {
+        source testdefs.tcl
+        namespace eval tcltest {}
+	rename test tcltest::test
+}
+
+set test_schema [lrange {
+	{F1 C 10 0}
+	{F2 L 1 0}
+	{F3 N 10 0}
+	{F4 D 8 0}
+	{F5 F 10 2}
+} 0 end]
+
+set test_records [lrange {
+	{1st Y 11 20010101 11.11}
+	{2nd N 22 20020202 22.22}
+	{3rd ? 33 20030303 33.33}
+} 0 end]
+
+set test_memoschema [lrange {
+	{F1 C 10 0}
+	{F2 M 10 0}
+} 0 end]
+
+set test_memorecords [lrange {
+	{1st {}}
+	{2nd {}}
+} 0 end]
+
+tcltest::test xbase-1.0 "load extension" {
+	if {[info exists env(XBASEDLL)]} {
+		load $env(XBASEDLL) Xbasetcl
+	}
+} {}
+
+tcltest::test xbase-1.1.1 "empty" {
+	catch xbase result
+	string range $result 0 40
+} {wrong # args: should be "xbase command"}
+
+tcltest::test xbase-1.1.2 "unknown" {
+	catch {xbase unknown} result
+	string range $result 0 20
+} {bad command "unknown"}
+
+tcltest::test xbase-1.2 "version parameters error" {
+	catch {xbase ver foo} result
+        set result
+} {wrong # args: should be "xbase version"}
+
+tcltest::test xbase-1.3 "version" {
+	xbase version
+} {2.1.0}
+
+tcltest::test xbase-1.4 "version abbrev" {
+	xbase ver
+} {2.1.0}
+
+tcltest::test xbase-1.5 "date format parameters error" {
+	catch {xbase dateformat foo bar} result
+	set result
+} {wrong # args: should be "xbase dateformat ?format?"}
+
+tcltest::test xbase-1.6 "date format" {
+	set result ""
+	lappend result [xbase dateformat]
+	lappend result [xbase dateform bla-bla-bla]
+	lappend result [xbase date [lindex $result 0]]
+} {MM/DD/YY bla-bla-bla MM/DD/YY}
+
+tcltest::test xbase-1.7 "init dbf parameters error" {
+	catch {xbase dbf} result
+        set result
+} {wrong # args: should be "xbase dbf name"}
+
+tcltest::test xbase-1.8 "init dbf parameters error" {
+	catch {xbase dbf foo bar} result
+        set result
+} {wrong # args: should be "xbase dbf name"}
+
+tcltest::test xbase-1.9 "init dbf object" {
+	xbase dbf test
+} {test}
+
+tcltest::test xbase-2.1 "create dbf parameters error" {
+	catch {test create} result
+        set result
+} {wrong # args: should be "test create filename schema ?-overlay?"}
+
+tcltest::test xbase-2.2 "create dbf parameters error" {
+	catch {test create test foo bar} result
+        set result
+} {bad option bar}
+
+tcltest::test xbase-2.3 "create dbf schema error" {
+	catch {test create test {}} result
+        set result
+} {empty schema}
+
+tcltest::test xbase-2.4 "create dbf schema error" {
+	catch {test create test {{F}}} result
+        set result
+} {invalid schema, field #0}
+
+tcltest::test xbase-2.5 "create dbf schema error" {
+	catch {test create test {{F N 10}}} result
+        set result
+} {invalid schema, field #0}
+
+tcltest::test xbase-2.6 "create dbf schema error" {
+	catch {test create test {{F N 10 -1}}} result
+        set result
+} {invalid fdec, field #0}
+
+tcltest::test xbase-2.7 "create dbf error" {
+	catch {test create test {{F N 255 0}} -overlay} result
+        set result
+} {Invalid Field Length}
+
+tcltest::test xbase-2.8 "create dbf error" {
+	catch {test create test {{F N 10 255}} -overlay} result
+        set result
+} {Invalid Schema}
+
+tcltest::test xbase-2.9 "create dbf error" {
+	catch {test create test {{F ? 10 0}} -overlay} result
+        set result
+} {Unknown Field Type}
+
+tcltest::test xbase-2.10 "closed dbf misc" {
+	list [test status] [test version] [test schema] [test name]
+} {closed 3 {} {}}
+
+tcltest::test xbase-2.10.1 "create dbf ok" {
+	test create test {{F N 10 0}} -overlay
+} {test.dbf}
+
+tcltest::test xbase-2.10.2 "open dbf misc" {
+	list [test status] [test version] [test schema] [test name]
+} {open 3 {{F N 10 0}} test.dbf}
+
+tcltest::test xbase-2.10.3 "delete created dbf" {
+	test close
+        file delete test.dbf
+} {}
+
+tcltest::test xbase-2.10.3 "create dbf in home" {
+	set result [test create ~/__test__ {{F N 10 0}} -overlay]
+	test close
+	file delete ~/__test__.dbf
+	set result
+} [file nativename ~/__test__.dbf]
+
+tcltest::test xbase-2.11 "create dbf test" {
+        test create test $test_schema
+} {test.dbf}
+
+tcltest::test xbase-2.12 "open dbf nonclosed" {
+	catch {test open unexistent} result
+	set result
+} {Database already open}
+
+tcltest::test xbase-2.13 "close dbf" {
+	test close
+} {}
+
+tcltest::test xbase-2.14 "open dbf error" {
+	catch {test open unexistent} result
+	set result
+} {Database or Index Open Error}
+
+tcltest::test xbase-2.15 "open dbf" {
+	test open test
+} {test.dbf}
+
+tcltest::test xbase-2.15.1 "dbf name" {
+	test name
+} {test.dbf}
+
+tcltest::test xbase-2.16 "dbf schema" {
+	test schema
+} $test_schema
+
+tcltest::test xbase-3.1 "dbf append" {
+	set result {}
+	foreach record $test_records {
+		lappend result [test append $record]
+	}
+	set result
+} $test_records
+
+tcltest::test xbase-3.1.1 "dbf update" {
+	set result {}
+	test goto 1
+	test update [lindex $test_records 1]
+	test blank
+	test goto 1
+	lappend result [test record]
+	test record [lindex $test_records 2] 
+	test update
+	test blank
+	test goto 1
+	lappend result [test record]
+	set fields {}
+	foreach i $test_schema {
+		lappend fields [lindex $i 0]
+	}
+	test fields $fields [lindex $test_records 0]
+	test update
+	test blank
+	test goto 1
+	concat [list [test record]] $result
+} $test_records
+
+tcltest::test xbase-3.2 "dbf position 0" {
+	test goto 2
+	catch {test goto 0} result
+	lappend result [test position]
+} {Invalid Record Number 2}
+
+tcltest::test xbase-3.3 "dbf position eof" {
+	test goto 2
+	catch {test goto [expr [test size]+1]} result
+	lappend result [test position]
+} {Invalid Record Number 2}
+
+tcltest::test xbase-3.4 "dbf position" {
+	set result [test size]
+	lappend result [test first]
+	while {[test next]} {
+		lappend result [test position]
+	}
+	lappend result [test last]
+	while {[test prev]} {
+		lappend result [test position]
+	}
+	lappend result [test goto 1] [test goto 2] [test goto 3]
+	lappend result [test position]
+	test close
+	test open test
+	lappend result [test position]
+	set result
+} {3 1 2 3 3 2 1 1 2 3 3 0}
+
+tcltest::test xbase-3.5 "dbf fields" {
+    list \
+        [test goto 1] \
+        [test fields] \
+        [test field F1] \
+        [test field F2] \
+        [test field F3] \
+        [test field F4] \
+        [test field F5] \
+        [test field {F1 F2 F3 F4 F5}] \
+        [test field F1 1ST] \
+        [test field {F3 F5} {1 1.1}] \
+        [test field {F1 F3 F5}] \
+        [test record [lindex $test_records 0]]
+} {1 {F1 F2 F3 F4 F5} 1st Y 11 20010101 11.11 {1st Y 11 20010101 11.11} 1ST {1 1.10} {1ST 1 1.10} {1st Y 11 20010101 11.11}}
+
+tcltest::test xbase-3.6 "dbf read" {
+    set result {}
+    test first
+    while {1} {
+        lappend result [test record]
+        if {![test next]} break
+    }
+    set result
+} $test_records
+
+tcltest::test xbase-3.7 "dbf deleted" {
+    set result {}
+    test first
+    while {1} {
+        lappend result [test deleted]
+        if {![test next]} break
+    }
+    test first
+    while {1} {
+        lappend result [test deleted 1]
+        if {![test next]} break
+    }
+    test close
+    test open test
+    test first
+    while {1} {
+        lappend result [test deleted]
+        if {![test next]} break
+    }
+    test first
+    while {1} {
+        lappend result [test deleted 0]
+        if {![test next]} break
+    }
+    test close
+    test open test
+    test first
+    while {1} {
+        lappend result [test deleted]
+        if {![test next]} break
+    }
+    set result
+} {0 0 0 1 1 1 1 1 1 0 0 0 0 0 0}
+
+tcltest::test xbase-3.8 "dbf blank" {
+    list \
+        [test blank] \
+        [test append] \
+        [test goto 4] \
+        [test record] \
+        [test size]
+} {{{} {} {} {} {}} {{} {} {} {} {}} 4 {{} {} {} {} {}} 4}
+
+tcltest::test xbase-3.9 "dbf pack" {
+    list \
+        [test goto 4] \
+        [test deleted 1] \
+        [test pack] \
+        [test position] \
+        [test size]
+} {4 1 {} 4 3}
+
+if 0 {
+tcltest::test xbase-3.10 "dbf zap" {
+    list \
+        [test size] \
+	[test zap] \    	
+	[test size]
+} {3 {} 0 3}
+
+tcltest::test xbase-5.1.0 "append records" {
+    foreach record $test_records {
+	lappend result [test append $record]
+    }
+} {}
+} ;# zap
+
+tcltest::test xbase-5.1.1 "create simple ndx index" {
+    test index testndx1
+    testndx1 create testndx1 F1 -overlay
+} {testndx1.ndx}
+
+tcltest::test xbase-5.1.2 "create simple ntx index" {
+    test index testntx1 -ntx
+    testntx1 create testntx1 F1 -overlay
+} {testntx1.ntx}
+
+tcltest::test xbase-5.2.1 "simple ndx misc" {
+    list [testndx1 dbf] [testndx1 name] [testndx1 type] [testndx1 status]
+} {test testndx1.ndx ndx open}
+
+tcltest::test xbase-5.2.2 "simple ntx misc" {
+    list [testntx1 dbf] [testntx1 name] [testntx1 type] [testntx1 status]
+} {test testntx1.ntx ntx open}
+
+tcltest::test xbase-5.3 "simple index dbf" {
+    testndx1 dbf
+} {test}
+
+tcltest::test xbase-5.4.1 "simple ndx reindex" {
+    testndx1 reindex
+} {}
+
+tcltest::test xbase-5.4.2 "simple ntx reindex" {
+    testntx1 reindex
+} {}
+
+tcltest::test xbase-5.5.1 "simple ndx index position" {
+	set result [[testndx1 dbf] size]
+	lappend result [testndx1 first]
+	while {[testndx1 next]} {
+		lappend result [test position]
+	}
+	lappend result [testndx1 last]
+	while {[testndx1 prev]} {
+		lappend result [test position]
+	}
+	lappend result [testndx1 find 2nd] [test position]
+	lappend result [testndx1 find none] [test position]
+	set result
+} {3 1 2 3 3 2 1 2 2 0 2}
+
+tcltest::test xbase-5.5.2 "simple ntx index position" {
+	set result [[testntx1 dbf] size]
+	lappend result [testntx1 first]
+	while {[testntx1 next]} {
+		lappend result [test position]
+	}
+	lappend result [testntx1 last]
+	while {[testntx1 prev]} {
+		lappend result [test position]
+	}
+	lappend result [testntx1 find 2nd] [test position]
+	lappend result [testntx1 find none] [test position]
+	set result
+} {3 1 2 3 3 2 1 2 2 0 2}
+
+tcltest::test xbase-6.1 "create simple table filter" {
+    test filter testfilter1 "F3 > 10"
+} {testfilter1}
+
+tcltest::test xbase-6.2 "create simple index filter" {
+    testndx1 filter testfilter2 "F3 > 10"
+} {testfilter2}
+
+tcltest::test xbase-6.3 "simple table filter position" {
+	set result [[testfilter1 dbf] size]
+	lappend result [testfilter1 first]
+	while {[testfilter1 next]} {
+		lappend result [test position]
+	}
+	lappend result [testfilter1 last]
+	while {[testfilter1 prev]} {
+		lappend result [test position]
+	}
+	set result
+} {3 1 2 3 3 2 1}
+
+tcltest::test xbase-6.4 "simple index filter position" {
+	set result [[testfilter2 dbf] size]
+	lappend result [testfilter2 first]
+	while {[testfilter2 next]} {
+		lappend result [test position]
+	}
+	lappend result [testfilter2 last]
+	while {[testfilter2 prev]} {
+		lappend result [test position]
+	}
+	set result
+} {3 1 2 3 3 2 1}
+
+if {$tcl_version > 8.0} {
+
+#
+# UTF-8 conversion (cyrillic field name and value)
+#
+
+set testcyr_schema [list [list \u0410\u0411 C 2 0]]
+set testcyr_record [list [list \u0412\u0413]]
+
+tcltest::test xbase-8.1 "dbf encoding" {
+	xbase dbf testcyr
+	testcyr encoding cp866
+} {cp866}
+
+tcltest::test xbase-8.2 "dbf create cyrillic schema" {
+	set result {}
+	testcyr create testcyr $testcyr_schema -overlay
+	lappend result [testcyr schema]
+	testcyr encoding identity
+	lappend result [encoding convertfrom cp866 [testcyr fields]]
+	testcyr encoding cp866
+	lappend result [testcyr fields]
+} [list \
+	$testcyr_schema \
+	[lindex [lindex $testcyr_schema 0] 0] \
+	[lindex [lindex $testcyr_schema 0] 0]]
+
+tcltest::test xbase-8.3 "dbf append cyrillic value" {
+    set result {}
+    testcyr append $testcyr_record
+} $testcyr_record
+
+tcltest::test xbase-8.4 "dbf read cyrillic record" {
+    testcyr goto 1
+    testcyr record
+} $testcyr_record
+
+tcltest::test xbase-8.5 "dbf read cyrillic field cyrillic value" {
+    set result {}
+    testcyr goto 1
+    testcyr field [lindex [lindex $testcyr_schema 0] 0]
+} $testcyr_record
+
+rename testcyr {}
+catch {file delete testcyr.dbf}
+
+}
+
+tcltest::test xbase-9.1 "close dbf" {
+    test close
+} {}
+
+tcltest::test xbase-9.2 "delete dbf" {
+    rename test {}
+} {}
+
+tcltest::test xbase-9.3 "delete xbase" {
+    xbase dbf test1
+    xbase dbf test2
+    xbase dbf test3
+    xbase dbf test4
+    rename xbase {}
+} {}
+
+tcltest::test xbase-9.4 "delete files" {
+    file delete test.dbf
+    file delete testndx1.ndx
+    file delete testntx1.ntx
+} {}
+
+catch {tcltest::cleanupTests 0}
+return

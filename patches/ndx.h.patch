@@ -1,0 +1,24 @@
+--- ndx.h.orig	2002-08-29 13:16:13.000000000 +0200
++++ ndx.h	2002-08-29 13:17:22.000000000 +0200
+@@ -195,7 +195,7 @@
+    xbNdxLeafNode LeafNode;
+    xbLong xbNodeLinkCtr;
+    xbLong ReusedxbNodeLinks;
+-   xbString IndexName;
++//   xbString IndexName;
+ #ifndef XB_VAR_NODESIZE
+    char  Node[XB_NDX_NODE_SIZE];
+ #else
+@@ -209,9 +209,9 @@
+    xbNdxNodeLink * CurNode;       /* pointer to current node              */
+    xbNdxNodeLink * DeleteChain;   /* pointer to chain to delete           */
+    xbNdxNodeLink * CloneChain;    /* pointer to node chain copy (add dup) */
+-   xbLong  CurDbfRec;             /* current Dbf record number */
+-   char  *KeyBuf;                 /* work area key buffer */
+-   char  *KeyBuf2;                /* work area key buffer */
++//   xbLong  CurDbfRec;             /* current Dbf record number */
++//   char  *KeyBuf;                 /* work area key buffer */
++//   char  *KeyBuf2;                /* work area key buffer */
+ 
+ /* private functions */
+    xbLong     GetLeftNodeNo( xbShort, xbNdxNodeLink * );

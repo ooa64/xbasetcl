@@ -1,0 +1,368 @@
+<html>
+<head>
+<link rel="stylesheet" href="manpage.css"><title>xbasetcl</title><meta name="xsl-processor" content="Jochen Loewer et. al. (loewerj@hotmail.com)"><meta name="generator" content="$RCSfile: tmml-html.xsl,v $ $Revision: 1.7 $">
+</head><body>
+<div class="header">
+<div class="navbar" align="center">
+<a href="#SECTnode884">NAME</a> · <a href="#SECTnode892">SYNOPSIS</a> · <a href="#SECTnode901">DESCRIPTION</a> · <a href="#SECTnode966">DBF Object Interface</a> · <a href="#SECTnode1245">Index Object Interface</a> · <a href="#SECTnode1401">Filter Object Interface</a>
+</div><hr class="navsep">
+</div><div class="body">
+
+<h2><a name="SECTnode884">NAME</a></h2><p class="namesection">
+<b class="names">xbasetcl - </b><br>Tcl binding to XBase library</p>
+
+<h2><a name="SECTnode892">SYNOPSIS</a></h2><pre class="syntax">
+<b class="syscmd">package require xbasetcl</b>
+</pre>
+
+<h2><a name="SECTnode901">DESCRIPTION</a></h2><p>
+<b class="syscmd">xbasetcl</b> 
+is an extention to the Tcl language designed to provide access to 
+XBase library objects. The extension is installed as a tcl package.
+After installation the extension is loaded simply by command:
+
+<dt><b class="syscmd">package require xbasetcl</b></dt>
+This command adds the command <b class="cmd">xbase</b> to the tcl command interpreter.
+Command <b class="cmd">xbase</b> is used to to control database access. 
+Available subcommands are:
+</p><dl>
+
+
+<dt><b class="method">version</b></dt>
+<dd>Prints XBase version</dd>
+
+
+
+<dt>
+<b class="method">dateformat</b><b class="option">   ? format ? </b>
+</dt>
+<dd>
+Query or set default date format
+</dd>
+
+
+
+<dt>
+<b class="method">dbf</b> <b class="option">id</b>
+</dt>
+<dd>
+Create a DBF object identified by <b class="cmd">id</b>.
+The command returns the id, which is used to refer to the object.
+This object is used to access .dbf files.
+</dd>
+
+
+</dl>
+
+<h2><a name="SECTnode966">DBF Object Interface</a></h2><p>
+DBF object is a dynamically allocated object, created by the <b class="cmd">xbase</b>
+command. The object provides the following methods. The methods are called
+as commands after the DBF object identifier.
+</p><dl>
+
+
+<dt>
+<b class="method">create</b><b class="option"> filename schema   ? -overlay ? </b>
+</dt>
+<dd>
+Create a new database using <b class="option">schema</b> to define the fields in the database.
+For example, one might database sample.dbf as follows:
+
+<pre class="example">
+xbase dbf id
+id create sample {
+    {FIRSTNAME C 15 0}
+    {LASTNAME  C 20 0}
+    {BIRTHDATE D  8 0}
+    {AMOUNT    N  9 2}
+    {SWITCH    L  1 0}
+    {FLOAT1    F  9 2}
+    {FLOAT2    F  9 1}
+    {FLOAT3    F  9 2}
+    {FLOAT4    F  9 3}
+    {MEMO1     M 10 0}
+    {ZIPCODE   N  5 0}
+}
+</pre>
+</dd>
+
+
+
+<dt>
+<b class="method">version</b><b class="option">   ? version ? </b>
+</dt>
+<dd>
+Query or set .DBF version
+</dd>
+
+
+
+<dt><b class="method">status</b></dt>
+<dd>
+'open', 'closed', 'updated'.
+</dd>
+
+
+
+<dt><b class="method">name</b></dt>
+<dd>
+Returns .DBF file name.
+</dd>
+
+
+
+<dt>
+<b class="method">open</b> <b class="option">filename</b>
+</dt>
+<dd>
+Open an existing database
+</dd>
+
+
+
+<dt><b class="method">close</b></dt>
+<dd>
+Close an open database
+</dd>
+
+
+
+<dt><b class="method">pack</b></dt>
+<dd>
+Compress file and remove deleted records
+</dd>
+
+
+
+<dt><b class="method">schema</b></dt>
+<dd>
+Returns the fields definition of an open database
+</dd>
+
+
+
+<dt><b class="method">blank</b></dt>
+<dd>
+Fill the current record buffer with blanks
+</dd>
+
+
+
+<dt>
+<b class="method">fields</b><b class="option">   ? names ?    ? values ? </b>
+</dt>
+<dd>
+Set or query named fields of a current record
+</dd>
+
+
+
+<dt>
+<b class="method">record</b><b class="option">   ? values ? </b>
+</dt>
+<dd>
+Set or query all fields of a current record
+</dd>
+
+
+
+<dt>
+<b class="method">append</b><b class="option">   ? values ? </b>
+</dt>
+<dd>
+Append a new record to the end of an open database
+</dd>
+
+
+
+<dt>
+<b class="method">update</b><b class="option">   ? values ? </b>
+</dt>
+<dd>
+Flush a current record in an open database
+</dd>
+
+
+
+<dt>
+<b class="method">deleted</b><b class="option">   ? 0 | 1 ? </b>
+</dt>
+<dd>
+Query or set deletion flag for the current record
+</dd>
+
+
+
+<dt><b class="method">first</b></dt>
+<dt><b class="method">last</b></dt>
+<dt><b class="method">prev</b></dt>
+<dt><b class="method">next</b></dt>
+<dt>
+<b class="method">goto</b> <b class="option">position</b>
+</dt>
+<dd>
+Get the first, last, previous, next or specified record in the database
+Returns the record number
+</dd>
+
+
+
+<dt><b class="method">position</b></dt>
+<dd>
+Returns the current record number.
+</dd>
+
+
+
+<dt><b class="method">size</b></dt>
+<dd>
+Returns the number of records in an open database
+</dd>
+
+
+
+<dt>
+<b class="method">index</b> <b class="option">id</b>
+</dt>
+<dd>
+Create a index object identified by <b class="cmd">id</b>.
+The command returns the id, which is used to refer to the object.
+This object is used to access .ndx or .ntx files.
+</dd>
+
+
+
+<dt>
+<b class="method">filter</b> <b class="option">id expression</b>
+</dt>
+<dd>
+Create a filter object identified by <b class="cmd">id</b>.
+The command returns the id, which is used to access data records
+filtered using <b class="option">expression</b>.
+</dd>
+
+
+</dl>
+
+<h2><a name="SECTnode1245">Index Object Interface</a></h2><p>
+Index object is a dynamically allocated object, created by the <b class="cmd">dbf</b>
+command. The object provides the following methods. The methods are called
+as commands after the Index object identifier.
+</p><dl>
+
+
+<dt>
+<b class="method">create</b><b class="option"> filename expression   ? -unique ?    ? -overlay ? </b>
+</dt>
+<dd>
+</dd>
+
+
+
+<dt>
+<b class="method">open</b> <b class="option">filename</b>
+</dt>
+<dd>
+</dd>
+
+
+
+<dt><b class="method">close</b></dt>
+<dd>
+</dd>
+
+
+
+<dt><b class="method">reindex</b></dt>
+<dd>
+</dd>
+
+
+
+<dt><b class="method">status</b></dt>
+<dd>
+'open' or 'closed'.
+</dd>
+
+
+
+<dt><b class="method">name</b></dt>
+<dd>
+Returns index file name.
+</dd>
+
+
+
+<dt><b class="method">dbf</b></dt>
+<dd>
+Returns parent DBF object.
+</dd>
+
+
+
+<dt><b class="method">type</b></dt>
+<dd>
+Index type: 'ndx' or 'ntx'
+</dd>
+
+
+
+<dt><b class="method">first</b></dt>
+<dt><b class="method">last</b></dt>
+<dt><b class="method">prev</b></dt>
+<dt><b class="method">next</b></dt>
+<dd>
+Get the first, last, previous or next record in the database
+using index. Returns the record number or 0.
+</dd>
+
+
+
+<dt>
+<b class="method">find</b> <b class="option">keyvalue</b>
+</dt>
+<dd>
+Returns the record number or 0.
+</dd>
+
+
+
+<dt>
+<b class="method">filter</b> <b class="option">id expression</b>
+</dt>
+<dd>
+Create a filter object identified by <b class="cmd">id</b>.
+</dd>
+
+
+</dl>
+
+<h2><a name="SECTnode1401">Filter Object Interface</a></h2><p>
+Filter object is a dynamically allocated object, created by the <b class="cmd">index</b>
+command. The object provides the following methods. The methods are called
+as commands after the Index object identifier.
+</p><dl>
+
+
+<dt><b class="method">first</b></dt>
+<dt><b class="method">last</b></dt>
+<dt><b class="method">prev</b></dt>
+<dt><b class="method">next</b></dt>
+<dd>
+Get the first, last, previous or next record in the database
+using filter. Returns the record number or 0
+</dd>
+
+
+
+<dt><b class="method">dbf</b></dt>
+<dd>
+Returns parent DBF object.
+</dd>
+
+
+</dl>
+
+</div>
+</body>
+</html>

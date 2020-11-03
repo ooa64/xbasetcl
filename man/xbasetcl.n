@@ -1,0 +1,197 @@
+'\"
+'\" Generated from xbasetcl.xml
+'\"
+.so man.macros
+.TH xbasetcl n "" xbasetcl ""
+.BS
+.SH NAME
+xbasetcl \- Tcl binding to XBase library
+.SH SYNOPSIS
+.nf
+
+\&\fBpackage require xbasetcl\fP
+
+.fi
+.BE
+.SH DESCRIPTION
+.PP
+\&\fBxbasetcl\fP
+is an extention to the Tcl language designed to provide access to
+XBase library objects. The extension is installed as a tcl package.
+After installation the extension is loaded simply by command:
+.TP
+\&\fBpackage require xbasetcl\fP
+This command adds the command \fBxbase\fP to the tcl command interpreter.
+Command \fBxbase\fP is used to to control database access.
+Available subcommands are:
+.TP
+\&\fBversion\fP
+Prints XBase version
+.TP
+\&\fBdateformat\fP\fB   \fR?\fP format \fR?\fP \fP
+Query or set default date format
+.TP
+\&\fBdbf\fP \fBid\fP
+Create a DBF object identified by \fBid\fP.
+The command returns the id, which is used to refer to the object.
+This object is used to access .dbf files.
+.SH "DBF Object Interface"
+.PP
+DBF object is a dynamically allocated object, created by the \fBxbase\fP
+command. The object provides the following methods. The methods are called
+as commands after the DBF object identifier.
+.TP
+\&\fBcreate\fP\fB filename schema   \fR?\fP -overlay \fR?\fP \fP
+
+
+Create a new database using \fBschema\fP to define the fields in the database.
+For example, one might database sample.dbf as follows:
+
+
+.RS
+.CS
+
+xbase dbf id
+id create sample {
+    {FIRSTNAME C 15 0}
+    {LASTNAME  C 20 0}
+    {BIRTHDATE D  8 0}
+    {AMOUNT    N  9 2}
+    {SWITCH    L  1 0}
+    {FLOAT1    F  9 2}
+    {FLOAT2    F  9 1}
+    {FLOAT3    F  9 2}
+    {FLOAT4    F  9 3}
+    {MEMO1     M 10 0}
+    {ZIPCODE   N  5 0}
+}
+
+.CE
+.RE
+.TP
+\&\fBversion\fP\fB   \fR?\fP version \fR?\fP \fP
+Query or set .DBF version
+.TP
+\&\fBstatus\fP
+\&'open', 'closed', 'updated'.
+.TP
+\&\fBname\fP
+Returns .DBF file name.
+.TP
+\&\fBopen\fP \fBfilename\fP
+Open an existing database
+.TP
+\&\fBclose\fP
+Close an open database
+.TP
+\&\fBpack\fP
+Compress file and remove deleted records
+.TP
+\&\fBschema\fP
+Returns the fields definition of an open database
+.TP
+\&\fBblank\fP
+Fill the current record buffer with blanks
+.TP
+\&\fBfields\fP\fB   \fR?\fP names \fR?\fP    \fR?\fP values \fR?\fP \fP
+Set or query named fields of a current record
+.TP
+\&\fBrecord\fP\fB   \fR?\fP values \fR?\fP \fP
+Set or query all fields of a current record
+.TP
+\&\fBappend\fP\fB   \fR?\fP values \fR?\fP \fP
+Append a new record to the end of an open database
+.TP
+\&\fBupdate\fP\fB   \fR?\fP values \fR?\fP \fP
+Flush a current record in an open database
+.TP
+\&\fBdeleted\fP\fB   \fR?\fP 0 | 1 \fR?\fP \fP
+Query or set deletion flag for the current record
+.TP
+\&\fBfirst\fP
+.TP
+\&\fBlast\fP
+.TP
+\&\fBprev\fP
+.TP
+\&\fBnext\fP
+.TP
+\&\fBgoto\fP \fBposition\fP
+Get the first, last, previous, next or specified record in the database
+Returns the record number
+.TP
+\&\fBposition\fP
+Returns the current record number.
+.TP
+\&\fBsize\fP
+Returns the number of records in an open database
+.TP
+\&\fBindex\fP \fBid\fP
+Create a index object identified by \fBid\fP.
+The command returns the id, which is used to refer to the object.
+This object is used to access .ndx or .ntx files.
+.TP
+\&\fBfilter\fP \fBid expression\fP
+Create a filter object identified by \fBid\fP.
+The command returns the id, which is used to access data records
+filtered using \fBexpression\fP.
+.SH "Index Object Interface"
+.PP
+Index object is a dynamically allocated object, created by the \fBdbf\fP
+command. The object provides the following methods. The methods are called
+as commands after the Index object identifier.
+.TP
+\&\fBcreate\fP\fB filename expression   \fR?\fP -unique \fR?\fP    \fR?\fP -overlay \fR?\fP \fP
+.TP
+\&\fBopen\fP \fBfilename\fP
+.TP
+\&\fBclose\fP
+.TP
+\&\fBreindex\fP
+.TP
+\&\fBstatus\fP
+\&'open' or 'closed'.
+.TP
+\&\fBname\fP
+Returns index file name.
+.TP
+\&\fBdbf\fP
+Returns parent DBF object.
+.TP
+\&\fBtype\fP
+Index type: 'ndx' or 'ntx'
+.TP
+\&\fBfirst\fP
+.TP
+\&\fBlast\fP
+.TP
+\&\fBprev\fP
+.TP
+\&\fBnext\fP
+Get the first, last, previous or next record in the database
+using index. Returns the record number or 0.
+.TP
+\&\fBfind\fP \fBkeyvalue\fP
+Returns the record number or 0.
+.TP
+\&\fBfilter\fP \fBid expression\fP
+Create a filter object identified by \fBid\fP.
+.SH "Filter Object Interface"
+.PP
+Filter object is a dynamically allocated object, created by the \fBindex\fP
+command. The object provides the following methods. The methods are called
+as commands after the Index object identifier.
+.TP
+\&\fBfirst\fP
+.TP
+\&\fBlast\fP
+.TP
+\&\fBprev\fP
+.TP
+\&\fBnext\fP
+Get the first, last, previous or next record in the database
+using filter. Returns the record number or 0
+.TP
+\&\fBdbf\fP
+Returns parent DBF object.
+

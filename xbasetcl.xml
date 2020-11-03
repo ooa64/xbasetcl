@@ -1,0 +1,351 @@
+<!-- $Id$ -->
+<manpage id="xbasetcl" cat="misc" title="xbasetcl" package="xbasetcl">
+
+<namesection>
+<name>xbasetcl</name><desc>Tcl binding to XBase library</desc>
+</namesection>
+
+<synopsis>
+<syntax>
+<syscmd>package require xbasetcl</syscmd>
+</syntax>
+</synopsis>
+
+<section>
+<title>DESCRIPTION</title>
+<p>
+<syscmd>xbasetcl</syscmd> 
+is an extention to the Tcl language designed to provide access to 
+XBase library objects. The extension is installed as a tcl package.
+After installation the extension is loaded simply by command:
+
+<dt><syscmd>package require xbasetcl</syscmd></dt>
+This command adds the command <cmd>xbase</cmd> to the tcl command interpreter.
+Command <cmd>xbase</cmd> is used to to control database access. 
+Available subcommands are:
+</p>
+
+<dl>
+
+<dle>
+<dt><method>version</method></dt>
+<dd>Prints XBase version</dd>
+</dle>
+
+<dle>
+<dt><method>dateformat</method><option>  <o>format</o></option></dt>
+<dd>
+Query or set default date format
+</dd>
+</dle>
+
+<dle>
+<dt><method>dbf</method> <option>id</option></dt>
+<dd>
+Create a DBF object identified by <cmd>id</cmd>.
+The command returns the id, which is used to refer to the object.
+This object is used to access .dbf files.
+</dd>
+</dle>
+
+</dl>
+</section>
+
+<section>
+<title>DBF Object Interface</title>
+
+<p>
+DBF object is a dynamically allocated object, created by the <cmd>xbase</cmd>
+command. The object provides the following methods. The methods are called
+as commands after the DBF object identifier.
+</p>
+
+<dl>
+
+<dle>
+<dt><method>create</method><option> filename schema  <o>-overlay</o></option></dt>
+<dd>
+Create a new database using <option>schema</option> to define the fields in the database.
+For example, one might database sample.dbf as follows:
+
+<example>
+xbase dbf id
+id create sample {
+    {FIRSTNAME C 15 0}
+    {LASTNAME  C 20 0}
+    {BIRTHDATE D  8 0}
+    {AMOUNT    N  9 2}
+    {SWITCH    L  1 0}
+    {FLOAT1    F  9 2}
+    {FLOAT2    F  9 1}
+    {FLOAT3    F  9 2}
+    {FLOAT4    F  9 3}
+    {MEMO1     M 10 0}
+    {ZIPCODE   N  5 0}
+}
+</example>
+</dd>
+</dle>
+
+<dle>
+<dt><method>version</method><option>  <o>version</o></option></dt>
+<dd>
+Query or set .DBF version
+</dd>
+</dle>
+
+<dle>
+<dt><method>status</method></dt>
+<dd>
+'open', 'closed', 'updated'.
+</dd>
+</dle>
+
+<dle>
+<dt><method>name</method></dt>
+<dd>
+Returns .DBF file name.
+</dd>
+</dle>
+
+<dle>
+<dt><method>open</method> <option>filename</option></dt>
+<dd>
+Open an existing database
+</dd>
+</dle>
+
+<dle>
+<dt><method>close</method></dt>
+<dd>
+Close an open database
+</dd>
+</dle>
+
+<dle>
+<dt><method>pack</method></dt>
+<dd>
+Compress file and remove deleted records
+</dd>
+</dle>
+
+<dle>
+<dt><method>schema</method></dt>
+<dd>
+Returns the fields definition of an open database
+</dd>
+</dle>
+
+<dle>
+<dt><method>blank</method></dt>
+<dd>
+Fill the current record buffer with blanks
+</dd>
+</dle>
+
+<dle>
+<dt><method>fields</method><option>  <o>names</o>  <o>values</o></option></dt>
+<dd>
+Set or query named fields of a current record
+</dd>
+</dle>
+
+<dle>
+<dt><method>record</method><option>  <o>values</o></option></dt>
+<dd>
+Set or query all fields of a current record
+</dd>
+</dle>
+
+<dle>
+<dt><method>append</method><option>  <o>values</o></option></dt>
+<dd>
+Append a new record to the end of an open database
+</dd>
+</dle>
+
+<dle>
+<dt><method>update</method><option>  <o>values</o></option></dt>
+<dd>
+Flush a current record in an open database
+</dd>
+</dle>
+
+<dle>
+<dt><method>deleted</method><option>  <o>0 | 1</o></option></dt>
+<dd>
+Query or set deletion flag for the current record
+</dd>
+</dle>
+
+<dle>
+<dt><method>first</method></dt>
+<dt><method>last</method></dt>
+<dt><method>prev</method></dt>
+<dt><method>next</method></dt>
+<dt><method>goto</method> <option>position</option></dt>
+<dd>
+Get the first, last, previous, next or specified record in the database
+Returns the record number
+</dd>
+</dle>
+
+<dle>
+<dt><method>position</method></dt>
+<dd>
+Returns the current record number.
+</dd>
+</dle>
+
+<dle>
+<dt><method>size</method></dt>
+<dd>
+Returns the number of records in an open database
+</dd>
+</dle>
+
+<dle>
+<dt><method>index</method> <option>id</option></dt>
+<dd>
+Create a index object identified by <cmd>id</cmd>.
+The command returns the id, which is used to refer to the object.
+This object is used to access .ndx or .ntx files.
+</dd>
+</dle>
+
+<dle>
+<dt><method>filter</method> <option>id expression</option></dt>
+<dd>
+Create a filter object identified by <cmd>id</cmd>.
+The command returns the id, which is used to access data records
+filtered using <option>expression</option>.
+</dd>
+</dle>
+
+</dl>
+</section>
+
+<section>
+<title>Index Object Interface</title>
+
+<p>
+Index object is a dynamically allocated object, created by the <cmd>dbf</cmd>
+command. The object provides the following methods. The methods are called
+as commands after the Index object identifier.
+</p>
+
+<dl>
+
+<dle>
+<dt><method>create</method><option> filename expression  <o>-unique</o>  <o>-overlay</o></option></dt>
+<dd>
+</dd>
+</dle>
+
+<dle>
+<dt><method>open</method> <option>filename</option></dt>
+<dd>
+</dd>
+</dle>
+
+<dle>
+<dt><method>close</method></dt>
+<dd>
+</dd>
+</dle>
+
+<dle>
+<dt><method>reindex</method></dt>
+<dd>
+</dd>
+</dle>
+
+<dle>
+<dt><method>status</method></dt>
+<dd>
+'open' or 'closed'.
+</dd>
+</dle>
+<dle>
+
+<dt><method>name</method></dt>
+<dd>
+Returns index file name.
+</dd>
+</dle>
+<dle>
+
+<dt><method>dbf</method></dt>
+<dd>
+Returns parent DBF object.
+</dd>
+</dle>
+
+<dle>
+<dt><method>type</method></dt>
+<dd>
+Index type: 'ndx' or 'ntx'
+</dd>
+</dle>
+
+<dle>
+<dt><method>first</method></dt>
+<dt><method>last</method></dt>
+<dt><method>prev</method></dt>
+<dt><method>next</method></dt>
+<dd>
+Get the first, last, previous or next record in the database
+using index. Returns the record number or 0.
+</dd>
+</dle>
+
+<dle>
+<dt><method>find</method> <option>keyvalue</option></dt>
+<dd>
+Returns the record number or 0.
+</dd>
+</dle>
+
+<dle>
+<dt><method>filter</method> <option>id expression</option></dt>
+<dd>
+Create a filter object identified by <cmd>id</cmd>.
+</dd>
+</dle>
+
+</dl>
+</section>
+
+<section>
+<title>Filter Object Interface</title>
+
+<p>
+Filter object is a dynamically allocated object, created by the <cmd>index</cmd>
+command. The object provides the following methods. The methods are called
+as commands after the Index object identifier.
+</p>
+
+<dl>
+
+<dle>
+<dt><method>first</method></dt>
+<dt><method>last</method></dt>
+<dt><method>prev</method></dt>
+<dt><method>next</method></dt>
+<dd>
+Get the first, last, previous or next record in the database
+using filter. Returns the record number or 0
+</dd>
+</dle>
+
+<dle>
+<dt><method>dbf</method></dt>
+<dd>
+Returns parent DBF object.
+</dd>
+</dle>
+
+</dl>
+</section>
+
+</manpage>

@@ -1,0 +1,115 @@
+# makefile.vc for nmake
+#
+# Possible uses are:
+#
+# nmake -nologo -f makefile.vc [USE_TCL_STUBS=1] [STATIC_BUILD=1] [DEBUG=1]
+#
+# Xbase files required:
+#
+# $(XBASESRC)\xbase\makerules.vc  - common defines
+# $(XBASESRC)\xbase\xbase.h       - header
+# $(XBASESRC)\xbase\xbases.lib    - static lib
+# $(XBASESRC)\xbase\xbasesd.lib   - static debug lib
+#
+
+!ifndef XBASESRC
+XBASESRC = ..\xbase-2.1.0-cvs20020509 
+!endif
+
+!ifndef TCLROOT
+TCLROOT	 = c:\progra~1\tcl
+!endif
+
+!ifndef TCLVERSION
+TCLVERSION = 83
+!endif
+
+###
+
+!include "$(XBASESRC)\xbase\makerules.vc"
+
+NAMEPREFIX = xbasetcl
+VERSION = 10
+NAME = $(NAMEPREFIX)$(DBGX)$(VERSION)
+LIB = $(NAME).lib
+
+!ifndef USE_TCL_STUBS
+!if "$(TCLVERSION)" == "80"
+USE_TCL_STUBS = 0
+!else
+USE_TCL_STUBS = 1
+!endif
+!endif
+
+###
+
+DEFINES = $(DEFINES) -I"$(TCLROOT)\include" -I"$(XBASESRC)"
+
+DEFINES = $(DEFINES) -D__VISUALC__ -D__WIN32__ -D__MSVC__
+
+!if "$(DEBUG)" == "1"
+DEFINES = $(DEFINES) -DXBASE_DEBUG 
+DEFINES = $(DEFINES) -DTCL_DEBUG=1
+DEFINES = $(DEFINES) -DTCL_MEM_DEBUG=1
+!endif
+
+!if "$(STATIC_BUILD)" == "1"
+DEFINES	= $(DEFINES) -DSTATIC_BUILD
+!else
+DEFINES = $(DEFINES) -DXBMAKINGDLL
+!endif
+
+!if $(USE_TCL_STUBS) == 1
+DEFINES	= $(DEFINES) -DUSE_TCL_STUBS=1
+!endif
+
+###
+
+LIBS = $(LIBS) -libpath:"$(XBASESRC)\xbase" xbases$(DBGX).lib
+
+LIBS = $(LIBS) -libpath:"$(TCLROOT)\lib"
+!if $(USE_TCL_STUBS) == 1
+#LIBS	= $(LIBS) tclstub$(TCLVERSION)$(DBGX).lib
+LIBS	= $(LIBS) tclstub$(TCLVERSION).lib
+!else
+LIBS	= $(LIBS) tcl$(TCLVERSION)$(DBGX).lib
+!endif
+
+LIBS = $(LIBS) msvcirt$(DBGX).lib 
+
+OBJS = \
+	xbasetcl.obj \
+	tclcmd.obj \
+	tclxbase.obj \
+	tcldbf.obj \
+	tclindex.obj \
+	tclfilter.obj
+
+all : $(LIB)
+
+clean :
+	-del *.obj
+	-del *.idb
+	-del *.ilk
+	-del *.pch
+	-del *.pdb
+
+test : all
+	set XBASEDLL=.\$(NAME).dll
+	$(TCLROOT)\bin\tclsh$(TCLVERSION)$(DBGX) xbasetcl.test -verbose bps
+
+!if "$(STATIC_BUILD)" == "1"
+
+$(LIB): $(OBJS)
+    $(lib32) -out:$@ $(OBJS)
+
+!else
+
+$(LIB): $(NAME).dll
+$(NAME).dll: $(OBJS)
+    $(link32) $(ldebug) $(dlllflags) -out:$@ $(guilibsdll) $(LIBS) $(OBJS)
+
+!endif
+
+
+

@@ -1,0 +1,136 @@
+######################################################################
+# a bug fix needed for VC++ 6.0's nmake tool.
+#
+# Reset the version *string* back to the integer it's supposed to be.
+# More entries will have to be made here for all subsiquent nmake
+# versions until Microsoft fixes it.
+#
+_NMAKE_VER  = $(_NMAKE_VER:6.00.8168.0=600)
+######################################################################
+
+!ifndef MSDEVROOT
+MSDEVROOT   = d:\progra~1\micros~1
+!endif
+
+!ifndef DEBUG
+DEBUG = 0
+!endif
+
+!ifndef STATIC_BUILD
+STATIC_BUILD = 0
+!endif
+
+#######################################################################
+
+TOOLS32     = $(MSDEVROOT)\VC98
+TOOLS32_rc  = $(MSDEVROOT)\common\MSDev98
+
+!if "$(DEBUG)" == "1"
+DEFINES     = $(DEFINES) -D_DEBUG=1 -DDEBUG=1
+DEBUG       = 1
+DBGX        = d
+!else
+DEFINES     = $(DEFINES) -DNDEBUG=1 -DNODEBUG=1
+DEBUG       =
+DBGX        =
+!endif
+
+!if "$(STATIC_BUILD)" == "1"
+STATIC_BUILD= 1
+DLLX        = s
+!else
+STATIC_BUILD=
+DLLX        =
+!endif
+
+MACHINE     = IX86
+
+rc32        = "$(TOOLS32_rc)\bin\rc.exe"
+cl32        = "$(TOOLS32)\bin\cl.exe"
+cc32        = "$(TOOLS32)\bin\cl.exe" -c
+link32      = "$(TOOLS32)\bin\link.exe"
+lib32       = "$(TOOLS32)\bin\lib.exe"
+cvtres32    = "$(TOOLS32)\bin\cvtres.exe"
+include32   = -I"$(TOOLS32)\include"
+libpath32   = /LIBPATH:"$(TOOLS32)\lib"
+vcvars      = "$(TOOLS32)\bin\vcvars32.bat"
+
+RMDIR       = rmdir
+MKDIR       = mkdir
+RM          = del
+
+######################################################################
+# Compile flags
+######################################################################
+
+!if "$(DEBUG)" == "1"
+cdebug = -Z7 -Od -GZ
+!else
+!if "$(STATIC_BUILD)" == "1"
+cdebug = -O2 -Gs
+!else
+cdebug = -O2 -Gs -GD
+!endif
+!endif
+
+# declarations common to all compiler options
+cflags = -W3 -nologo 
+
+# to include winsock2.h, not winsock.h
+cflags = $(cflags) -D_WIN32_WINNT=0x0400 -DWINVER=0x0400
+
+cflags = $(cflags) -D_CONSOLE -D_MBCS -DWIN32 -D_WIN32_ -D__WIN32__ -D__MSVC__ -D__VISUALC__
+
+cvarsdll = -MD$(DBGX)
+
+!if "$(STATIC_BUILD)" == "1"
+cvarsdll = $(cvarsdll) -DSTATIC_BUILD
+!else
+cvarsdll = $(cvarsdll)
+!endif
+
+######################################################################
+# Link flags
+######################################################################
+
+!IF "$(DEBUG)" == "1"
+ldebug  = -debug:full -debugtype:cv
+!ELSE
+ldebug  = -release -opt:ref
+!ENDIF
+
+# declarations common to all linker options
+lflags  = /NODEFAULTLIB /NOLOGO /INCREMENTAL:NO /MACHINE:$(MACHINE) $(libpath32)
+
+# declarations for use on Intel i386, i486, and Pentium systems
+!IF "$(MACHINE)" == "IX86"
+DLLENTRY = @12
+dlllflags = $(lflags) -entry:_DllMainCRTStartup$(DLLENTRY) -dll
+!ELSE IF "$(MACHINE)" == "IA64"
+DLLENTRY = @12
+dlllflags = $(lflags) -dll
+!ELSE
+dlllflags = $(lflags) -entry:_DllMainCRTStartup$(DLLENTRY) -dll
+!ENDIF
+
+conlflags = $(lflags) -subsystem:console -entry:mainCRTStartup
+guilflags = $(lflags) -subsystem:windows -entry:WinMainCRTStartup
+
+libc = libc$(DBGX).lib oldnames.lib
+libcdll = msvcrt$(DBGX).lib oldnames.lib
+
+baselibs   = kernel32.lib $(optlibs) advapi32.lib user32.lib
+winlibs    = $(baselibs) gdi32.lib comdlg32.lib winspool.lib
+
+guilibs    = $(libc) $(winlibs)
+conlibs    = $(libc) $(baselibs)
+guilibsdll = $(libcdll) $(winlibs)
+conlibsdll = $(libcdll) $(baselibs)
+
+.cpp.obj ::
+    $(cc32) -GX $(cdebug) $(cflags) $(cvarsdll) $(include32) $(DEFINES) $<
+
+.c.obj ::
+    $(cc32) -GX $(cdebug) $(cflags) $(cvarsdll) $(include32) $(DEFINES) $<
+
+.SUFFIXES: .cpp .c

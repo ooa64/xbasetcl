@@ -1,0 +1,11 @@
+--- xbconfigw32.h.orig	2002-06-26 11:40:18.000000000 +0200
++++ xbconfigw32.h	2002-06-26 11:40:40.000000000 +0200
+@@ -52,7 +52,7 @@
+ //#define XB_LOCKING_ON 0
+ 
+ /* Define if you need to turn on XBase specific debug */
+-#define XBASE_DEBUG 1
++//#define XBASE_DEBUG 1
+ 
+ /* Define if your compiler support exceptions */
+ /* #undef HAVE_EXCEPTIONS */
