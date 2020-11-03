@@ -31,7 +31,7 @@ int TclIndex::Command (int objc, struct Tcl_Obj * CONST objv[])
   }
 
   if (Tcl_GetIndexFromObj(interp, objv[1],
-                          commands, "command", 0, &command) != TCL_OK) {
+                          (CONST char **) commands, "command", 0, &command) != TCL_OK) {
     return TCL_ERROR;
   }
 

@@ -6,7 +6,7 @@ xbasetcl 1.0 alpha 3
 
 Tested: 
 
-    Xbase: 2.1 cvs snapshot from 2002/05/09 with patches.
+    Xbase: 2.1 cvs snapshot from 2002/09/09.
     Os/compiler: Windows/msvc, Linux/gcc.
     Tcl: 8.0.5, 8.3.4.
 

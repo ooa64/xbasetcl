@@ -38,7 +38,7 @@ public:
 
   void Rename(Tcl_Interp * interp, char * name);
   int IsNamed() {return (tclInterp && tclToken);};
-  char * Name() {return IsNamed() ? 
+  CONST char * Name() {return IsNamed() ? 
 		   Tcl_GetCommandName(tclInterp, tclToken) : NULL;};
   // create, delete, query tcl command name
 
