@@ -9,7 +9,7 @@ _NMAKE_VER  = $(_NMAKE_VER:6.00.8168.0=600)
 ######################################################################
 
 !ifndef MSDEVROOT
-MSDEVROOT   = d:\progra~1\micros~1
+MSDEVROOT   = c:\progra~1\micros~1
 !endif
 
 !ifndef DEBUG
@@ -22,8 +22,11 @@ STATIC_BUILD = 0
 
 #######################################################################
 
-TOOLS32     = $(MSDEVROOT)\VC98
-TOOLS32_rc  = $(MSDEVROOT)\common\MSDev98
+#TOOLS32     = $(MSDEVROOT)\VC98
+#TOOLS32_rc  = $(MSDEVROOT)\common\MSDev98
+
+TOOLS32     = $(VCINSTALLDIR)
+TOOLS32_rc  = $(SDKINSTALLDIR)
 
 !if "$(DEBUG)" == "1"
 DEFINES     = $(DEFINES) -D_DEBUG=1 -DDEBUG=1
@@ -52,7 +55,7 @@ link32      = "$(TOOLS32)\bin\link.exe"
 lib32       = "$(TOOLS32)\bin\lib.exe"
 cvtres32    = "$(TOOLS32)\bin\cvtres.exe"
 include32   = -I"$(TOOLS32)\include"
-libpath32   = /LIBPATH:"$(TOOLS32)\lib"
+libpath32   = /LIBPATH:"$(TOOLS32)\lib" /LIBPATH:"$(TOOLS32_rc)\lib"
 vcvars      = "$(TOOLS32)\bin\vcvars32.bat"
 
 RMDIR       = rmdir
@@ -95,6 +98,7 @@ cvarsdll = $(cvarsdll)
 
 !IF "$(DEBUG)" == "1"
 ldebug  = -debug:full -debugtype:cv
+ldebug  = -debug
 !ELSE
 ldebug  = -release -opt:ref
 !ENDIF

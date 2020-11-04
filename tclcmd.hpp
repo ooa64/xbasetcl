@@ -6,10 +6,12 @@
 #include <tcl.h>
 
 #if defined(DEBUG)
-#   include <iostream.h>
-#   define DEBUGLOG(_x_) (cerr << "DEBUG: " << _x_ << "\n")
+#   include <iostream>
+#   define DEBUGLOG(_x_) (::std::cerr << "DEBUG: " << _x_ << "\n")
+#   define _(_p_) (::std::cerr << "DEBUG: " #_p_ << "\n", _p_)
 #else
 #   define DEBUGLOG(_x_)
+#   define _(_p_) _p_
 #endif
 
 #if TCL_MAJOR_VERSION == 8 && TCL_MINOR_VERSION == 0
@@ -27,19 +29,18 @@ class TclCmd {
 
 public:
 
-  TclCmd() : tclInterp(NULL), tclToken(NULL), 
-	     pParent(NULL), pNext(NULL), pPrev(NULL), pChildren(NULL) {};
+  TclCmd();
 
-  TclCmd(Tcl_Interp * interp, char * name);
-  TclCmd(Tcl_Interp * interp, char * name, TclCmd * parent);
+  TclCmd(Tcl_Interp * interp, CONST char * name);
+  TclCmd(Tcl_Interp * interp, CONST char * name, TclCmd * parent);
 
   virtual ~TclCmd();
   // virtual destructor for all objects
 
-  void Rename(Tcl_Interp * interp, char * name);
+  void Rename(Tcl_Interp * interp, CONST char * name);
   int IsNamed() {return (tclInterp && tclToken);};
-  CONST char * Name() {return IsNamed() ? 
-		   Tcl_GetCommandName(tclInterp, tclToken) : NULL;};
+  CONST char * Name() {return IsNamed() ?
+           Tcl_GetCommandName(tclInterp, tclToken) : NULL;};
   // create, delete, query tcl command name
 
   TclCmd * Parent() {return pParent;};
@@ -51,16 +52,19 @@ public:
   void RemoveChild(TclCmd * child);
 
   static void Destroy(ClientData);
-  // Static function for destroying database objects
-  
+  // Static function for destroying objects when command deleted
+
+  static void Delete(ClientData clientData, Tcl_Interp *interp);
+  // Static function for destroying objects when interp deleted
+
   static int Dispatch(ClientData clientData, Tcl_Interp * interp,
-		      int objc, Tcl_Obj * const objv[]);
+              int objc, Tcl_Obj * const objv[]);
   // Static function for dispatching commands to objects
-  
+
 protected:
 
   void Unname () {
-    tclInterp = NULL; 
+    tclInterp = NULL;
     tclToken = NULL;
   };
 
