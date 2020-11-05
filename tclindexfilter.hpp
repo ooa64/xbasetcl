@@ -18,10 +18,10 @@ class TclIndexFilter : public TclFilter {
 public:
 
   TclIndexFilter(Tcl_Interp * interp, char * name, char * expression,
-		 TclIndex * parent) : TclFilter(interp, name, parent) {
+                 TclIndex * parent) : TclFilter(interp, name, parent) {
     filter = new xbFilter(((TclIndex *)parent)->Dbf(), 
-			   ((TclIndex *)parent)->Index(), 
-			   expression);
+                           ((TclIndex *)parent)->Index(), 
+                           expression);
   }
 
   virtual ~TclIndexFilter() {

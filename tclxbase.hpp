@@ -34,7 +34,7 @@ public:
     if (rc < 0) {
       Tcl_ResetResult(tclInterp);
       Tcl_AppendResult(tclInterp, xbase->GetErrorMessage(rc), NULL);
-      return TCL_ERROR;                                  	
+      return TCL_ERROR;
     }
     return TCL_OK;
   }

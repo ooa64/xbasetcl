@@ -34,7 +34,7 @@ int TclXbase::Command (int objc, struct Tcl_Obj * CONST objv[])
   }
   
   if (Tcl_GetIndexFromObj(interp, objv[1], 
-						  (CONST char **)commands, "command", 0, &index) != TCL_OK) {
+                          (CONST char **)commands, "command", 0, &index) != TCL_OK) {
     return TCL_ERROR;
   }
 
@@ -71,10 +71,10 @@ int TclXbase::Command (int objc, struct Tcl_Obj * CONST objv[])
     } else if (objc == 3) {
       Tcl_Encoding e = Tcl_GetEncoding(interp, Tcl_GetString(objv[2]));
       if (e) {
-		Tcl_FreeEncoding(encoding);
-		encoding = e;
+        Tcl_FreeEncoding(encoding);
+        encoding = e;
       } else {
-		return TCL_ERROR;
+        return TCL_ERROR;
       }
     }
     Tcl_AppendResult(interp, Tcl_GetEncodingName(encoding), NULL);

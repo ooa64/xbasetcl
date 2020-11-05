@@ -17,10 +17,10 @@ class TclDbfFilter : public TclFilter {
 public:
 
   TclDbfFilter(Tcl_Interp * interp, char * name, char * expression,
-		 TclDbf * parent) : TclFilter(interp, name, parent) {
+               TclDbf * parent) : TclFilter(interp, name, parent) {
     filter = new xbFilter(((TclDbf *)parent)->Dbf(), 
-			  NULL, 
-			  expression);
+                          NULL, 
+                          expression);
   }
 
   virtual ~TclDbfFilter() {
