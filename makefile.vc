@@ -15,10 +15,10 @@
 ### Defaults
 
 !ifndef XBASESRC
-XBASESRC = ..\xbase-2.1.0-cvs20020906
+XBASESRC = ..\xbase
 !endif
 
-!include "$(XBASESRC)\xbase\makerules.vc"
+!include "$(XBASESRC)\makerules.vc"
 
 !ifndef XBASEVERSION
 XBASEVERSION = 21
@@ -62,11 +62,13 @@ LIB = $(NAME).lib
 
 TCLLIB = tcl$(TCLVERSION)$(TCL_DBGX).lib
 
-DEFINES = $(DEFINES) -I"$(TCLROOT)\include" -I"$(XBASESRC)"
+DEFINES = $(DEFINES) $(CFLAGS) -I"$(TCLROOT)\include" -I"$(XBASESRC)"
 LIBS = $(LIBS) -libpath:"$(XBASESRC)\xbase" -libpath:"$(TCLROOT)\lib"
 LIBS = $(LIBS) msvcrt$(DBGX).lib msvcprt$(DBGX).lib
 
 !if "$(DEBUG)" == "1"
+#DEFINES = $(DEFINES) -DTCLCMD_DEBUG
+DEFINES = $(DEFINES) -DTCLDBF_DEBUG
 DEFINES = $(DEFINES) -DXBASE_DEBUG 
 DEFINES = $(DEFINES) -DTCL_DEBUG=1
 DEFINES = $(DEFINES) -DTCL_MEM_DEBUG=1
@@ -119,6 +121,10 @@ clean :
 	-del *.ilk
 	-del *.pch
 	-del *.pdb
+	-del $(LIB)
+	-del $(SHELL)
+	-del $(NAME).dll
+	-del $(NAME).exp
 
 !if "$(STATIC_BUILD)" == "1"
 
@@ -141,7 +147,7 @@ $(NAME).dll: $(OBJS)
 !endif
 
 $(SHELL): $(OBJs) $(SHELL_OBJS) tclsh.res
-	link -nologo $(ldebug) $(conlflags) -out:$@ $(conlibsdll) $(LIBS) $(SHELL_OBJS) $(OBJS) tclsh.res 
+	link -nologo $(ldebug) $(lflags) -out:$@ $(conlibsdll) $(LIBS) $(SHELL_OBJS) $(OBJS) tclsh.res 
 
 tclAppInit.obj: tclAppInit.c 
 	cl -nologo -c -EHsc $(DEFINES) $(CFLAGS) /DTCL_LOCAL_APPINIT=Xbasetcl_AppInit -Fo$@ $?
