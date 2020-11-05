@@ -1,44 +1,50 @@
 if {[catch {package require tcltest}]} {
     source testdefs.tcl
     namespace eval tcltest {}
-	rename test tcltest::test
+    rename test tcltest::test
+}
+if {[catch {load xbasetcl10tg.dll}] &&
+    [catch {load xbasetcl10g.dll}] &&
+    [catch {load xbasetcl10.dll}] &&
+    [catch {package require xbasetcl} result]} {
+    error "Cant load xbasetcl: $result"
 }
 
 set test_schema [lrange {
-	{F1 C 10 0}
-	{F2 L 1 0}
-	{F3 N 10 0}
-	{F4 D 8 0}
-	{F5 F 10 2}
+    {F1 C 10 0}
+    {F2 L 1 0}
+    {F3 N 10 0}
+    {F4 D 8 0}
+    {F5 F 10 2}
 } 0 end]
 
 set test_records [lrange {
-	{1st Y 11 20010101 11.11}
-	{2nd N 22 20020202 22.22}
-	{3rd ? 33 20030303 33.33}
+    {1st Y 11 20010101 11.11}
+    {2nd N 22 20020202 22.22}
+    {3rd ? 33 20030303 33.33}
 } 0 end]
 
 set test_memoschema [lrange {
-	{F1 C 10 0}
-	{F2 M 10 0}
+    {F1 C 10 0}
+    {F2 M 10 0}
 } 0 end]
 
 set test_memorecords [lrange {
-	{1st {}}
-	{2nd {This is a second record}}
-	{3nd {}}
-	{4nd {This is a last record}}
+    {1st {}}
+    {2nd {This is a second record}}
+    {3nd {}}
+    {4nd {This is a last record}}
 } 0 end]
 
 tcltest::test xbase-1.0 "load extension" {
-	if {[info exists env(XBASEDLL)]} {
-		load $env(XBASEDLL) Xbasetcl
-	}
+    if {[info exists env(XBASEDLL)]} {
+        load $env(XBASEDLL) Xbasetcl
+    }
 } {}
 
 tcltest::test xbase-1.1.1 "empty" {
-	catch xbase result
-	string range $result 0 40
+    catch xbase result
+    string range $result 0 40
 } "wrong # args: should be \"xbase command\""
 
 tcltest::test xbase-1.1.2 "unknown" {
@@ -53,11 +59,11 @@ tcltest::test xbase-1.2 "version parameters error" {
 
 tcltest::test xbase-1.3 "version" {
     xbase version
-} {2.1.0}
+} {2.1.2}
 
 tcltest::test xbase-1.4 "version abbrev" {
     xbase ver
-} {2.1.0}
+} {2.1.2}
 
 tcltest::test xbase-1.5 "date format parameters error" {
     catch {xbase dateformat foo bar} result
@@ -375,7 +381,7 @@ if 0 {
     tcltest::test xbase-3.10 "dbf zap" {
         list \
             [test size] \
-            [test zap] \    	
+            [test zap] \        
         [test size]
     } {3 {} 0 3}
 
@@ -408,13 +414,12 @@ foreach memover {3 4} {
         testmemo create testmemo $test_memoschema
     } {testmemo.dbf}
 
-    tcltest::test xbase-4.$memover.3 "append some memos" {
+    tcltest::test xbase-4.$memover.3 "append some memos blank/append/update" {
         set result {}
         foreach record $test_memorecords {
-            #testmemo blank
-            #testmemo append
-            #lappend result [testmemo update $record]
-            lappend result [testmemo append $record]
+            testmemo blank
+            testmemo append
+            lappend result [testmemo update $record]
         }
         set result
     } $test_memorecords
@@ -429,14 +434,43 @@ foreach memover {3 4} {
         set result
     } $test_memorecords
 
-    #    tcltest::test xbase-4.$memover.4 "lost memos" {
+    tcltest::test xbase-4.$memover.5 "memo cleanup" {
+        testmemo close
+        file delete testmemo.dbf
+        file delete testmemo.dbt
+    } {}
+
+    tcltest::test xbase-4.$memover.6 "create file with memo again" {
+        testmemo version $memover
+        testmemo create testmemo $test_memoschema
+    } {testmemo.dbf}
+
+    tcltest::test xbase-4.$memover.7 "append some memos using simle append" {
+        set result {}
+        foreach record $test_memorecords {
+            lappend result [testmemo append $record]
+        }
+        set result
+    } $test_memorecords
+
+    tcltest::test xbase-4.$memover.8 "read some memos" {
+        set result {}
+        testmemo first
+        lappend result [testmemo record]
+        while {[testmemo next]} {
+            lappend result [testmemo record]
+        }
+        set result
+    } $test_memorecords
+
+    #    tcltest::test xbase-4.$memover.9 "lost memos" {
     #        set result {}
-    #	testmemo blank
-    #	testmemo append
+    #        testmemo blank
+    #        testmemo append
     #        set result
     #    } $test_memorecords
 
-    tcltest::test xbase-4.4 "memos cleanup" {
+    tcltest::test xbase-4.$memover.10 "memos cleanup" {
         rename testmemo {}
         #file delete testmemo.dbf
         #file delete testmemo.dbt
