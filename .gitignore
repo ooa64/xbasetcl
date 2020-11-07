@@ -37,3 +37,7 @@
 *.dbt
 *.ndx
 *.ntx
+
+xbasetcl.sublime-project
+
+xbasetcl.sublime-workspace
