@@ -62,11 +62,11 @@ tcltest::test xbase-1.2 "version parameters error" {
 
 tcltest::test xbase-1.3 "version" {
     xbase version
-} {2.1.2}
+} {2.1.3}
 
 tcltest::test xbase-1.4 "version abbrev" {
     xbase ver
-} {2.1.2}
+} {2.1.3}
 
 tcltest::test xbase-1.5 "date format parameters error" {
     catch {xbase dateformat foo bar} result

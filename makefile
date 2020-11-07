@@ -12,7 +12,7 @@ XBASE_LIBS = -L$(XBASE_SRC)/xbase $(XBASE_SRC)/xbase/.libs/libxbase.so
 
 #TCL = /usr
 #TCL_VERSION = 8.6
-#TCL_CFLAGS = -I$(TCL)/include -DUSE_TCL_STUBS=1
+#TCL_CFLAGS = -I$(TCL)/include -I$(TCL)/include/tcl -DUSE_TCL_STUBS=1
 #TCL_LIBS = -L$(TCL)/lib -ltcl$(TCL_VERSION) -ltclstub$(TCL_VERSION)
 #TCLSH = $(TCL)/bin/tclsh$(TCL_VERSION)
 
