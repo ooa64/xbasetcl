@@ -3,12 +3,15 @@ if {[catch {package require tcltest}]} {
     namespace eval tcltest {}
     rename test tcltest::test
 }
-if {[catch {load xbasetcl10tg.dll}] &&
+if { 0 &&
+    [catch {load $env(XBASETCLDLL)}] &&
+    [catch {load xbasetcl10tg.dll}] &&
     [catch {load xbasetcl10g.dll}] &&
     [catch {load xbasetcl10.dll}] &&
     [catch {package require xbasetcl} result]} {
     error "Cant load xbasetcl: $result"
 }
+load $env(XBASETCLDLL)
 
 set test_schema [lrange {
     {F1 C 10 0}
@@ -253,7 +256,7 @@ tcltest::test xbase-3.1.1 "dbf update" {
     test blank
     test goto 1
     lappend result [test record]
-    test record [lindex $test_records 2] 
+    test record [lindex $test_records 2]
     test update
     test blank
     test goto 1
@@ -381,7 +384,7 @@ if 0 {
     tcltest::test xbase-3.10 "dbf zap" {
         list \
             [test size] \
-            [test zap] \        
+            [test zap] \
         [test size]
     } {3 {} 0 3}
 
@@ -481,7 +484,7 @@ foreach memover {3 4} {
 unset memover
 
 foreach {indextype indexnum} {ndx 1 ntx 2} {
-    
+
     tcltest::test xbase-5.$indexnum.1 "create simple $indextype indexes" {
         list \
             [test index -$indextype testi1] \
@@ -624,11 +627,11 @@ tcltest::test xbase-9.3 "delete xbase" {
 } {}
 
 tcltest::test xbase-9.4 "delete files" {
-    #file delete test.dbf
-    #file delete testi1.ndx
-    #file delete testi1.ntx
-    #file delete testi2.ndx
-    #file delete testi2.ntx
+    file delete test.dbf
+    file delete testi1.ndx
+    file delete testi1.ntx
+    file delete testi2.ndx
+    file delete testi2.ntx
 } {}
 
 catch {tcltest::cleanupTests 0}
