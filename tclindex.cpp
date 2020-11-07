@@ -10,7 +10,7 @@
 
 int TclIndex::Command (int objc, struct Tcl_Obj * CONST objv[])
 {
-  static char *commands[] = {
+  static CONST char *commands[] = {
     "create", "open", "close", "reindex", "flush",
     "status", "name", "dbf",   "type",
     "first",  "last", "prev",  "next", "find",
