@@ -20,7 +20,7 @@ void TclXbase::Cleanup () {
 
 int TclXbase::Command (int objc, struct Tcl_Obj * CONST objv[])
 {
-  static char *commands[] = {
+  static CONST char *commands[] = {
     "version", "dateformat", "encoding", "dbf", 0L
   };
   enum commands {

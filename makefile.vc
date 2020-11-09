@@ -6,10 +6,10 @@
 #
 # Xbase files required:
 #
-# $(XBASESRC)\xbase\makerules.vc  - common defines
+# $(XBASESRC)\makerules.vc  - common defines
 # $(XBASESRC)\xbase\xbase.h       - header
-# $(XBASESRC)\xbase\xbaseXXs.lib    - static lib
-# $(XBASESRC)\xbase\xbaseXXsd.lib   - static debug lib
+# $(XBASESRC)\xbase\XXX\xbaseXXs.lib    - static lib
+# $(XBASESRC)\xbase\XXX\xbaseXXsd.lib   - static debug lib
 #
 
 ### Defaults
@@ -29,11 +29,11 @@ XBASESTATIC = 1
 !endif
 
 !ifndef TCLROOT
-TCLROOT	 = c:\progra~1\tcl
+TCLROOT	 = c:\activetcl
 !endif
 
 !ifndef TCLVERSION
-TCLVERSION = 83
+TCLVERSION = 86
 !endif
 
 !ifndef USE_TCL_STUBS
@@ -44,8 +44,20 @@ USE_TCL_STUBS = 1
 !endif
 !endif
 
+!ifndef DEBUG
+DEBUG = 0
+!endif
+
+!ifndef STATIC_BUILD
+STATIC_BUILD = 0
+!endif
+
+!ifndef MSVCRT
+MSVCRT = 1
+!endif
+
 !ifndef THREADS
-THREADS = 1
+THREADS = 0
 !endif
 
 !if "$(THREADS)" == "1"
@@ -56,14 +68,15 @@ TCL_DBGX = t
 
 NAMEPREFIX = xbasetcl
 VERSION = 10
-SHELL = $(NAMEPREFIX)sh$(VERSION)$(TCL_DBGX).exe
-NAME = $(NAMEPREFIX)$(VERSION)$(TCL_DBGX)
-LIB = $(NAME).lib
+
+XBASETCLLIB = $(MACHINE)\$(NAMEPREFIX)$(VERSION)$(TCL_DBGX).lib
+XBASETCLDLL = $(MACHINE)\$(NAMEPREFIX)$(VERSION)$(TCL_DBGX).dll
+XBASETCLSHELL = $(MACHINE)\$(NAMEPREFIX)sh$(VERSION)$(TCL_DBGX).exe
 
 TCLLIB = tcl$(TCLVERSION)$(TCL_DBGX).lib
 
-DEFINES = $(DEFINES) $(CFLAGS) -I"$(TCLROOT)\include" -I"$(XBASESRC)"
-LIBS = $(LIBS) -libpath:"$(XBASESRC)\xbase" -libpath:"$(TCLROOT)\lib"
+DEFINES = $(DEFINES) -I"$(TCLROOT)\include" -I"$(XBASESRC)"
+LIBS = $(LIBS) -libpath:"$(XBASESRC)\xbase\$(MACHINE)" -libpath:"$(TCLROOT)\lib"
 LIBS = $(LIBS) msvcrt$(DBGX).lib msvcprt$(DBGX).lib
 
 !if "$(DEBUG)" == "1"
@@ -88,73 +101,85 @@ TCL_DBGX = stg
 LIBS = $(LIBS) xbase$(XBASEVERSION)s$(DBGX).lib
 !else
 DEFINES = $(DEFINES) -DXBUSINGDLL
-LIBS = $(LIBS) xbase$(XBASEVERSION)$(DBGX).lib
+LIBS = $(LIBS) xbase$(XBASEVERSION)$(DBGX).lib"
 !endif
 
 !if $(USE_TCL_STUBS) == 1
 DEFINES	= $(DEFINES) -DUSE_TCL_STUBS=1
 #LIBS	= $(LIBS) tclstub$(TCLVERSION)$(DBGX).lib
-LIBS	= $(LIBS) tclstub$(TCLVERSION).lib $(TCLLIB)
+#LIBS	= $(LIBS) tclstub$(TCLVERSION).lib $(TCLLIB)
+LIBS	= $(LIBS) $(TCLLIB) tclstub$(TCLVERSION).lib
 !else
+USESTUBS = 
 LIBS	= $(LIBS) $(TCLLIB)
 !endif
 
 OBJS = \
-	xbasetcl.obj \
-	tclcmd.obj \
-	tclxbase.obj \
-	tcldbf.obj \
-	tclindex.obj \
-	tclfilter.obj
+	$(MACHINE)\xbasetcl.obj \
+	$(MACHINE)\tclcmd.obj \
+	$(MACHINE)\tclxbase.obj \
+	$(MACHINE)\tcldbf.obj \
+	$(MACHINE)\tclindex.obj \
+	$(MACHINE)\tclfilter.obj
 
-SHELL_OBJS = xbaseAppInit.obj tclAppInit.obj
+SHELL_OBJS = $(MACHINE)\xbaseAppInit.obj $(MACHINE)\tclAppInit.obj
 
 # Rules
 
-all : $(LIB)
+all : $(XBASETCLLIB)
 
-shell: $(SHELL)
+shell: $(XBASETCLSHELL)
+
+prepare:
+    -@mkdir $(MACHINE) 2> NUL
 
 clean :
-	-del *.obj
-	-del *.idb
-	-del *.ilk
-	-del *.pch
-	-del *.pdb
-	-del $(LIB)
-	-del $(SHELL)
-	-del $(NAME).dll
-	-del $(NAME).exp
+	-del $(MACHINE)\*.obj
+	-del $(MACHINE)\*.idb
+	-del $(MACHINE)\*.ilk
+	-del $(MACHINE)\*.pch
+	-del $(MACHINE)\*.pdb
+	-del $(MACHINE)\*.exp
+	-del $(XBASETCLLIB)
+	-del $(XBASETCLDLL)
+	-del $(XBASETCLSHELL)
+        -rmdir $(MACHINE)
 
 !if "$(STATIC_BUILD)" == "1"
 
 test : all shell
 	$(SHELL) xbasetcl.test
 
-$(LIB): $(OBJS)
-    $(lib32) -out:$@ $(OBJS)
+$(XBASETCLLIB): prepare $(OBJS)
+    $(libXX) -out:$@ $(OBJS)
 
 !else
 
 test : all
-	set XBASEDLL=.\$(NAME).dll
-	$(TCLROOT)\bin\tclsh$(TCLVERSION)$(TCL_DBGX) xbasetcl.test
+    set XBASETCLDLL=$(XBASETCLDLL)
+    set HOME=$(TEMP)
+    $(TCLROOT)\bin\tclsh$(TCLVERSION)$(TCL_DBGX) xbasetcl.test
 
-$(LIB): $(NAME).dll
-$(NAME).dll: $(OBJS)
-    $(link32) $(ldebug) $(dlllflags) -out:$@ $(conlibsdll) $(LIBS) $(OBJS)
+$(XBASETCLLIB): $(XBASETCLDLL)
+$(XBASETCLDLL): prepare $(OBJS)
+    $(linkXX) $(ldebug) $(dlllflags) -out:$@ $(conlibsdll) $(LIBS) $(OBJS)
 
 !endif
 
-$(SHELL): $(OBJs) $(SHELL_OBJS) tclsh.res
-	link -nologo $(ldebug) $(lflags) -out:$@ $(conlibsdll) $(LIBS) $(SHELL_OBJS) $(OBJS) tclsh.res 
+#$(XBASETCLSHELL): $(OBJS) tclAppInit.c xbaseAppInit.c tclsh.res
+#    $(clXX) -nologo -EHsc $(cflags) -I"$(TCLROOT)\include" -I"$(XBASESRC)" \
+#        /DTCL_LOCAL_APPINIT=Xbasetcl_AppInit tclAppInit.c xbaseAppInit.c \
+#        $(OBJS) tclsh.res /link -out:$@ $(ldebug) $(conlflags) $(conlibsdll) $(LIBS)
 
-tclAppInit.obj: tclAppInit.c 
-	cl -nologo -c -EHsc $(DEFINES) $(CFLAGS) /DTCL_LOCAL_APPINIT=Xbasetcl_AppInit -Fo$@ $?
+$(XBASETCLSHELL): $(OBJS) $(SHELL_OBJS) tclsh.res
+    $(linkXX) -nologo $(ldebug) $(conlflags) -out:$@ $(conlibsdll) $(LIBS) $(SHELL_OBJS) $(OBJS) tclsh.res 
 
-xbaseAppInit.obj: xbaseAppInit.c 
-	cl -nologo -c -EHsc $(DEFINES) $(CFLAGS) -Fo$@ $?
+$(MACHINE)\tclAppInit.obj: tclAppInit.c 
+    $(clXX) -nologo -c -EHsc $(cflags) -I"$(TCLROOT)\include" /DTCL_LOCAL_APPINIT=Xbasetcl_AppInit -Fo$@ $?
+
+$(MACHINE)\xbaseAppInit.obj: xbaseAppInit.c 
+    $(clXX) -nologo -c -EHsc $(cflags) -I"$(TCLROOT)\include" -I"$(XBASESRC)" -Fo$@ $?
 
 .rc.res:
-        rc -fo $@ -r -i $(DEFINES) $<
+    $(rc32) -fo $@ -r -i $(DEFINES) $<
 

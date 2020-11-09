@@ -12,12 +12,6 @@ EXTERN int Xbasetcl_SafeInit _ANSI_ARGS_ ((Tcl_Interp *));
 
 int Xbasetcl_AppInit(Tcl_Interp *interp)
 {
-#ifdef USE_TCL_STUBS
-    if (Tcl_InitStubs(interp, "8.1", 0) == 0L) {
-        return TCL_ERROR;
-    }
-#endif
-
     if (Tcl_Init(interp) == TCL_ERROR) {
         return TCL_ERROR;
     }

@@ -2,14 +2,15 @@
 
 #include "tclxbase.hpp"
 
-#undef TCL_STORAGE_CLASS
-#define TCL_STORAGE_CLASS DLLEXPORT
+extern "C" {
+  DLLEXPORT int Xbasetcl_Init(Tcl_Interp *interp);
+  DLLEXPORT int Xbasetcl_SafeInit(Tcl_Interp *interp);
+}
 
-EXTERN int
-Xbasetcl_Init (Tcl_Interp *interp)
+int Xbasetcl_Init (Tcl_Interp *interp)
 {
 #ifdef USE_TCL_STUBS
-  if (Tcl_InitStubs(interp, "8.1", 0) == 0L) {
+  if (Tcl_InitStubs(interp, "8.6", 0) == 0L) {
     return TCL_ERROR;
   }
 #endif
@@ -21,8 +22,7 @@ Xbasetcl_Init (Tcl_Interp *interp)
   return TCL_OK;
 }
 
-EXTERN int
-Xbasetcl_SafeInit (Tcl_Interp *interp)
+int Xbasetcl_SafeInit (Tcl_Interp *interp)
 {
   return Xbasetcl_Init(interp);
 }

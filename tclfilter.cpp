@@ -9,7 +9,7 @@
 
 int TclFilter::Command (int objc, struct Tcl_Obj * CONST objv[])
 {
-  static char *commands[] = {
+  static CONST char *commands[] = {
     "dbf", "first", "last", "prev", "next",
     0L
   };

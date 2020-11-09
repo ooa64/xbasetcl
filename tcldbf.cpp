@@ -23,7 +23,7 @@ void TclDbf::Cleanup () {
 
 int TclDbf::Command (int objc, struct Tcl_Obj * CONST objv[])
 {
-  static char *commands[] = {
+  static CONST char *commands[] = {
     "create", "open",    "close",  "pack",   "zap",      "flush",
     "name",   "version", "status", "schema", "encoding",
     "blank",  "fields",  "record", "append", "update",   "deleted", 

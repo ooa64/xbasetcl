@@ -10,7 +10,7 @@ class TclXbase : public TclCmd {
 
 public:
 
-  TclXbase(Tcl_Interp * interp, char * name) : TclCmd(interp, name) {
+  TclXbase(Tcl_Interp * interp, CONST char * name) : TclCmd(interp, name) {
     xbase = new xbXBase();
 #ifdef TCL_UTF_MAX
     encoding = NULL;
