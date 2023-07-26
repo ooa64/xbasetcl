@@ -38,7 +38,7 @@ PRJ_OBJS = \
 
 
 # Define any additional compiler flags that might be required for the project
-PRJ_DEFINES = -D_CRT_SECURE_NO_DEPRECATE
+PRJ_DEFINES = -D_CRT_SECURE_NO_DEPRECATE -D__WIN32__
 PRJ_DEFINES = $(PRJ_DEFINES) -I$(TMP_DIR) -I$(XB_HOME)\include
 PRJ_LIBS = $(XB_HOME)\lib\xbase.lib
 
@@ -73,4 +73,4 @@ $<
 <<
 
 .SUFFIXES:
-.SUFFIXES:.cpp
+.SUFFIXES:.cpp .rc
