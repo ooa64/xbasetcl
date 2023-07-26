@@ -1524,7 +1524,7 @@ carch = $(carch) /DHAVE_CPUID=1
 
 !if $(DEBUG)
 # Turn warnings into errors
-cwarn = $(cwarn) -WX
+#cwarn = $(cwarn) -WX
 !endif
 
 INCLUDES = $(TCL_INCLUDES) $(TK_INCLUDES) $(PRJ_INCLUDES)
