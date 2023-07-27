@@ -3,8 +3,8 @@
 #ifndef TCLINDEX_H
 #define TCLINDEX_H
 
-#include <xbase/xbase.h>
-#include <xbase/index.h>
+#include <xbase.h>
+#include <xbindex.h>
 #include <tcl.h>
 
 #include "tclcmd.hpp"
@@ -24,11 +24,11 @@ public:
 
   xbXBase * XBase() {return ((TclDbf *)pParent)->XBase();};
   xbDbf * Dbf() {return ((TclDbf *)pParent)->Dbf();};
-  xbIndex * Index() {return index;};
+  xbIx * Index() {return index;};
 
 protected:
 
-  xbIndex * index;
+  xbIx * index;
 
 private:
 

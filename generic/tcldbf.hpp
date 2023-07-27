@@ -3,7 +3,7 @@
 #ifndef TCLDBF_H
 #define TCLDBF_H
 
-#include <xbase/xbase.h>
+#include <xbase.h>
 #include <tcl.h>
 
 #include "tclcmd.hpp"
@@ -24,7 +24,8 @@ public:
 
   TclDbf (Tcl_Interp * interp, char * name, TclXbase * tclxbase)
     : TclCmd(interp, name, tclxbase) {
-    dbf = new xbDbf(XBase());
+    dbf = new xbDbf4(XBase());
+
 #ifdef TCL_UTF_MAX
     encoding = NULL;
     Tcl_DStringInit(&dstring);

@@ -1,10 +1,16 @@
 #ifndef TCLXBASE_H
 #define TCLXBASE_H
 
-#include <xbase/xbase.h>
+#include <xbase.h>
 #include <tcl.h>
 
 #include "tclcmd.hpp"
+
+#ifndef XBASE_VERSION
+#define XBASE_VERSION STRINGIFY(xbase_VERSION_MAJOR) "." STRINGIFY(xbase_VERSION_MINOR) "." STRINGIFY(xbase_VERSION_PATCH)
+#endif
+
+using namespace xb;
 
 class TclXbase : public TclCmd {
 

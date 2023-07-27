@@ -8,7 +8,7 @@
 #   nmake /f makefile.vc INSTALLDIR=c:\path\to\tcl install
 #
 # Environment variables
-#   XB_HOME = "C:\Xbase" - Xbase install path
+#   XB_HOME = "C:\Xbase64" - Xbase64 install path
 #
 # For other build options (debug, static etc.),
 # See TIP 477 (https://core.tcl-lang.org/tips/doc/main/tip/477.md) for
@@ -38,9 +38,9 @@ PRJ_OBJS = \
 
 
 # Define any additional compiler flags that might be required for the project
-PRJ_DEFINES = -D_CRT_SECURE_NO_DEPRECATE -D__WIN32__
-PRJ_DEFINES = $(PRJ_DEFINES) -I$(TMP_DIR) -I$(XB_HOME)\include
-PRJ_LIBS = $(XB_HOME)\lib\xbase.lib
+PRJ_DEFINES = -D_CRT_SECURE_NO_DEPRECATE
+PRJ_DEFINES = $(PRJ_DEFINES) -I$(TMP_DIR) -I$(XB_HOME)\include\Xbase64
+PRJ_LIBS = $(XB_HOME)\bin\xbase64.lib
 
 # Define the standard targets
 !include "$(_RULESDIR)\targets.vc"

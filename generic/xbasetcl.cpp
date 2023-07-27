@@ -10,14 +10,16 @@ extern "C" {
 int Xbasetcl_Init (Tcl_Interp *interp)
 {
 #ifdef USE_TCL_STUBS
-  if (Tcl_InitStubs(interp, "8.6", 0) == 0L) {
+  if (Tcl_InitStubs(interp, "8.1", 0) == 0L) {
     return TCL_ERROR;
   }
 #endif
 
   (void) new TclXbase(interp, "xbase");
 
-  Tcl_PkgProvide(interp, "xbasetcl", "1.0");
+  if (Tcl_PkgProvideEx(interp, PACKAGE_NAME, PACKAGE_VERSION, NULL) != TCL_OK) {
+      return TCL_ERROR;
+  }
 
   return TCL_OK;
 }

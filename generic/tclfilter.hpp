@@ -3,8 +3,8 @@
 #ifndef TCLFILTER_H
 #define TCLFILTER_H
 
-#include <xbase/xbase.h>
-#include <xbase/xbfilter.h>
+#include <xbase.h>
+#include <xbfilter.h>
 #include <tcl.h>
 
 #include "tclcmd.hpp"
@@ -15,10 +15,15 @@ class TclFilter : public TclCmd {
 
 public:
 
-  TclFilter(Tcl_Interp * interp, char * name, TclCmd * parent) : 
-    TclCmd (interp, name, parent) {};
+  TclFilter(Tcl_Interp * interp, char * name, char * expression, TclCmd * parent) : 
+            TclCmd (interp, name, parent) {
+    filter = new xbFilter(((TclDbf *)parent)->Dbf());
+    filter->Set(expression);
+  };
 
-  virtual ~TclFilter() {};
+  virtual ~TclFilter() {
+    delete filter;
+  };
 
   inline int CheckRC (int rc) {
     return ParentDbf()->CheckRC(rc);
@@ -36,7 +41,9 @@ public:
     return filter;
   };
 
-  virtual TclDbf * ParentDbf() = 0;
+  TclDbf * ParentDbf() {
+    return (TclDbf *)pParent;
+  };
 
 protected:
 

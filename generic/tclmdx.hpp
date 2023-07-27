@@ -1,7 +1,7 @@
 // $Id$
 
-#ifndef TCLNDX_H
-#define TCLNDX_H
+#ifndef TCLMDX_H
+#define TCLMDX_H
 
 #include <xbase.h>
 #include <xbindex.h>
@@ -12,23 +12,23 @@
 #include "tcldbf.hpp"
 #include "tclindex.hpp"
 
-class TclNdx : public TclIndex {
+class TclMdx : public TclIndex {
 
 public:
 
-  TclNdx (Tcl_Interp * interp, char * name, TclDbf * tcldbf)
+  TclMdx (Tcl_Interp * interp, char * name, TclDbf * tcldbf)
     : TclIndex(interp, name, tcldbf) {
-    index = new xbIxNdx(tcldbf->Dbf());
+    index = new xbIxMdx(tcldbf->Dbf());
   };
 
-  virtual ~TclNdx() {
+  virtual ~TclMdx() {
     delete index;
   };
 
 private:
 
   virtual int Type() {
-    Tcl_AppendResult(tclInterp, "ndx", NULL);
+    Tcl_AppendResult(tclInterp, "mdx", NULL);
     return TCL_OK;
   };
 

@@ -1,5 +1,4 @@
 #include "tclindex.hpp"
-#include "tclindexfilter.hpp"
 
 #if defined(DEBUG) && !defined(TCLINDEX_DEBUG)
 #   undef DEBUGLOG
@@ -11,19 +10,18 @@
 int TclIndex::Command (int objc, struct Tcl_Obj * CONST objv[])
 {
   static CONST char *commands[] = {
-    "create", "open", "close", "reindex", "flush",
-    "status", "name", "dbf",   "type",
+    "create", "open", "close", "reindex",
+    "name",   "dbf",   "type",
     "first",  "last", "prev",  "next", "find",
-    "filter",
     0L
   };
   enum commands {
-    cmCreate, cmOpen, cmClose, cmReindex, cmFlush,
-    cmStatus, cmName, cmDbf,   cmType,
-    cmFirst,  cmLast, cmPrev,  cmNext, cmFind,
-    cmFilter
+    cmCreate, cmOpen, cmClose, cmReindex,
+    cmName,   cmDbf,  cmType,
+    cmFirst,  cmLast, cmPrev,  cmNext, cmFind
   };
   int command, rc;
+  void *p; 
 
   if (objc < 2) {
     Tcl_WrongNumArgs(interp, 1, objv, "command");
@@ -39,20 +37,24 @@ int TclIndex::Command (int objc, struct Tcl_Obj * CONST objv[])
 
   case cmCreate:
 
-    if (objc < 4 || objc > 7) {
+    if (objc < 4) {
       Tcl_WrongNumArgs(interp, 2, objv, 
-               "?-unique? ?-overlay? filename expression");
+               "?-unique? ?-overlay? ?-descending? filename expression");
       return TCL_ERROR;
     } else {
-      int rc, unique = XB_NOT_UNIQUE, overlay = 0;
+      int rc, descending = 0, unique = 0, overlay = 0;
       const char * indexname;
       const char * expression;
+      const char * filter = "";
+
       Tcl_DString s;
       
       for (int i = 2; i < (objc - 2); i++) {
         if (strcmp(Tcl_GetString(objv[i]), "-unique") == 0) {
-          unique = XB_UNIQUE;
+          unique = 1;
         } else if (strcmp(Tcl_GetString(objv[i]), "-overlay") == 0) {
+          overlay = 1;
+        } else if (strcmp(Tcl_GetString(objv[i]), "-descending") == 0) {
           overlay = 1;
         } else {
           Tcl_AppendResult(interp, "bad option ", Tcl_GetString(objv[i]), NULL);
@@ -68,7 +70,7 @@ int TclIndex::Command (int objc, struct Tcl_Obj * CONST objv[])
       expression = 
         ((TclDbf *)pParent)->DecodeTclString(Tcl_GetString(objv[objc - 1]));
       
-      rc = index->CreateIndex(indexname, expression, unique, overlay);
+      rc = index->CreateTag(indexname, expression, filter, descending, unique, overlay, &p);
       
       Tcl_DStringFree(&s);
       
@@ -76,7 +78,7 @@ int TclIndex::Command (int objc, struct Tcl_Obj * CONST objv[])
         return TCL_ERROR;
       }
     }
-    Tcl_AppendResult(interp, (const char *)index->IndexName, NULL);
+    Tcl_AppendResult(interp, (const char *)index->GetFileName(), NULL);
     
     break;
     
@@ -96,7 +98,7 @@ int TclIndex::Command (int objc, struct Tcl_Obj * CONST objv[])
           return TCL_ERROR;
         }
         
-        rc = index->OpenIndex(indexname);
+        rc = index->Open(indexname);
 
         Tcl_DStringFree(&s);
 
@@ -104,7 +106,7 @@ int TclIndex::Command (int objc, struct Tcl_Obj * CONST objv[])
           return TCL_ERROR;
         }
     }
-    Tcl_AppendResult(interp, (const char *)index->IndexName, NULL);
+    Tcl_AppendResult(interp, (const char *)index->GetFileName(), NULL);
 
     break;
 
@@ -114,7 +116,7 @@ int TclIndex::Command (int objc, struct Tcl_Obj * CONST objv[])
       Tcl_WrongNumArgs(interp, 2, objv, NULL);
       return TCL_ERROR;
     } else {
-      Tcl_AppendResult(interp, (const char *)index->IndexName, NULL);
+      Tcl_AppendResult(interp, (const char *)index->GetFileName(), NULL);
     }
     
     break;
@@ -124,7 +126,7 @@ int TclIndex::Command (int objc, struct Tcl_Obj * CONST objv[])
     if (objc != 2) {
       Tcl_WrongNumArgs(interp, 2, objv, NULL);
       return TCL_ERROR;
-    } else if (CheckRC(index->CloseIndex()) != TCL_OK) {
+    } else if (CheckRC(index->Close()) != TCL_OK) {
       return TCL_ERROR;
     }
 
@@ -135,35 +137,8 @@ int TclIndex::Command (int objc, struct Tcl_Obj * CONST objv[])
     if (objc != 2) {
       Tcl_WrongNumArgs(interp, 2, objv, NULL);
       return TCL_ERROR;
-    } else if (CheckRC(index->ReIndex()) != TCL_OK) {
+    } else if (CheckRC(index->Reindex(&p)) != TCL_OK) {
       return TCL_ERROR;
-    }
-
-    break;
-
-  case cmFlush:
-
-    if (objc != 2) {
-      Tcl_WrongNumArgs(interp, 2, objv, NULL);
-      return TCL_ERROR;
-    } else {
-          index->Flush();
-    }
-
-    break;
-
-  case cmStatus:
-
-    if (objc != 2) {
-      Tcl_WrongNumArgs(interp, 2, objv, NULL);
-      return TCL_ERROR;
-    } else {
-      switch (index->IndexStatus) {
-      case XB_CLOSED: Tcl_AppendResult(interp, "closed", NULL); break;
-      case XB_OPEN:   Tcl_AppendResult(interp, "open", NULL); break;
-      default:
-        Tcl_SetObjResult(interp, Tcl_NewIntObj(index->IndexStatus)); break;
-      }
     }
 
     break;
@@ -200,10 +175,10 @@ int TclIndex::Command (int objc, struct Tcl_Obj * CONST objv[])
       return TCL_ERROR;
     }
     switch ((enum commands)command) {
-    case cmFirst: rc = index->GetFirstKey(); break;
-    case cmLast: rc = index->GetLastKey(); break;
-    case cmPrev: rc = index->GetPrevKey(); break;
-    case cmNext: rc = index->GetNextKey(); break;
+    case cmFirst: rc = index->GetFirstKey(&p, 1); break;
+    case cmLast: rc = index->GetLastKey(&p, 1); break;
+    case cmPrev: rc = index->GetPrevKey(&p, 1); break;
+    case cmNext: rc = index->GetNextKey(&p, 1); break;
     default: rc = XB_NO_ERROR;
     }
     // XB_INVALID_RECORD is for FirstKey on empty index
@@ -212,7 +187,7 @@ int TclIndex::Command (int objc, struct Tcl_Obj * CONST objv[])
     } else if (CheckRC(rc) != TCL_OK) {
       return TCL_ERROR;
     } else {
-      Tcl_SetObjResult(interp, Tcl_NewLongObj(index->GetCurDbfRec()));
+      Tcl_SetObjResult(interp, Tcl_NewIntObj((((TclDbf *)pParent)->Dbf())->GetCurRecNo()));
     }
 
     break;
@@ -223,35 +198,43 @@ int TclIndex::Command (int objc, struct Tcl_Obj * CONST objv[])
       Tcl_WrongNumArgs(interp, 2, objv, "value");
       return TCL_ERROR;
     } else {
-      rc = index->FindKey
-        (((TclDbf *)pParent)->DecodeTclString(Tcl_GetString(objv[2])));
+/*
+  char cBuf[128];
+  std::cin.getline( cBuf, 128 );
+  xbInt16 iRc = 0;
+
+  if( cKeyType == 'C' ){
+    iRc = pIx->FindKey( vpCurTag, cBuf, (xbInt32) strlen( cBuf ), 1 );
+
+  } else if( cKeyType == 'F' || cKeyType == 'N' ){
+    xbDouble d = atof( cBuf );
+    iRc = pIx->FindKey( vpCurTag, d, 1 );
+
+  } else if( cKeyType == 'D' ){
+    xbDate dt( cBuf );
+    iRc = pIx->FindKey( vpCurTag, dt, 1 );
+  }
+
+  if( iRc == XB_NO_ERROR )
+      dActiveTable->DumpRecord( dActiveTable->GetCurRecNo(), 2);
+  else
+      x->DisplayError( iRc );
+ */      
+      xbString s = ((TclDbf *)pParent)->DecodeTclString(Tcl_GetString(objv[2]));
+      rc = index->FindKey(&p, s, 1);
 
       // XB_NOT_FOUND is documented, XB_EOF is real NOTFOUND
-      if (rc == XB_NOT_FOUND || rc == XB_EOF) {
+      if (rc == XB_NOT_FOUND) {
         Tcl_SetObjResult(interp, Tcl_NewIntObj(0));
-      } else if (rc == XB_FOUND) {
-        Tcl_SetObjResult(interp, Tcl_NewLongObj(index->GetCurDbfRec()));
-      } else {
-        (void) CheckRC(rc);
+      } else if (CheckRC(rc) != TCL_OK) {
         return TCL_ERROR;
+      } else {
+        Tcl_SetObjResult(interp, Tcl_NewIntObj((((TclDbf *)pParent)->Dbf())->GetCurRecNo()));
       }
     }
     
     break;
     
-  case cmFilter:
-
-    if (objc != 4) {
-      Tcl_WrongNumArgs(interp, 2, objv, "name expression");
-      return TCL_ERROR;
-    }
-    (void) new TclIndexFilter(interp, 
-                            Tcl_GetString(objv[2]), \
-                            Tcl_GetString(objv[3]), this);
-    Tcl_SetObjResult(interp, objv[2]);
-
-    break;
-
   default:
       return TCL_ERROR;
   }

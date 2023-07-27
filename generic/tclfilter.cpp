@@ -51,10 +51,10 @@ int TclFilter::Command (int objc, struct Tcl_Obj * CONST objv[])
       return TCL_ERROR;
     }
     switch ((enum commands)command) {
-    case cmFirst: rc = filter->GetFirstFilterRec(); break;
-    case cmLast: rc = filter->GetLastFilterRec(); break;
-    case cmPrev: rc = filter->GetPrevFilterRec(); break;
-    case cmNext: rc = filter->GetNextFilterRec(); break;
+    case cmFirst: rc = filter->GetFirstRecord(); break;
+    case cmLast: rc = filter->GetLastRecord(); break;
+    case cmPrev: rc = filter->GetPrevRecord(); break;
+    case cmNext: rc = filter->GetNextRecord(); break;
     default: rc = XB_NO_ERROR;
     }
     DEBUGLOG("filter " << Name() << " cmd " << command << " = " << rc);
