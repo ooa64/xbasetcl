@@ -3,12 +3,7 @@
 #ifndef TCLFILTER_H
 #define TCLFILTER_H
 
-#include <xbase.h>
-#include <xbfilter.h>
-#include <tcl.h>
-
 #include "tclcmd.hpp"
-#include "tclxbase.hpp"
 #include "tcldbf.hpp"
 
 class TclFilter : public TclCmd {

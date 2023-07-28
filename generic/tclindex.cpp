@@ -1,3 +1,5 @@
+#include <assert.h>
+
 #include "tclindex.hpp"
 
 #if defined(DEBUG) && !defined(TCLINDEX_DEBUG)
@@ -11,7 +13,7 @@ int TclIndex::Command (int objc, struct Tcl_Obj * CONST objv[])
 {
   static CONST char *commands[] = {
     "create", "open", "close", "reindex",
-    "name",   "dbf",   "type",
+    "name",   "dbf",  "type",
     "first",  "last", "prev",  "next", "find",
     0L
   };
@@ -21,7 +23,8 @@ int TclIndex::Command (int objc, struct Tcl_Obj * CONST objv[])
     cmFirst,  cmLast, cmPrev,  cmNext, cmFind
   };
   int command, rc;
-  void *p; 
+
+  assert(index); 
 
   if (objc < 2) {
     Tcl_WrongNumArgs(interp, 1, objv, "command");
@@ -32,6 +35,11 @@ int TclIndex::Command (int objc, struct Tcl_Obj * CONST objv[])
                           (CONST char **) commands, "command", 0, &command) != TCL_OK) {
     return TCL_ERROR;
   }
+
+  // index->SetCurTag((short)0);
+  void *vpTag = index->GetTag(0); // FIXME: select a tag?
+
+DEBUGLOG("CMD" << command << "tag=" << vpTag);
 
   switch ((enum commands)(command)) {
 
@@ -70,7 +78,7 @@ int TclIndex::Command (int objc, struct Tcl_Obj * CONST objv[])
       expression = 
         ((TclDbf *)pParent)->DecodeTclString(Tcl_GetString(objv[objc - 1]));
       
-      rc = index->CreateTag(indexname, expression, filter, descending, unique, overlay, &p);
+      rc = index->CreateTag(indexname, expression, filter, descending, unique, overlay, &vpTag);
       
       Tcl_DStringFree(&s);
       
@@ -78,7 +86,7 @@ int TclIndex::Command (int objc, struct Tcl_Obj * CONST objv[])
         return TCL_ERROR;
       }
     }
-    Tcl_AppendResult(interp, (const char *)index->GetFileName(), NULL);
+    Tcl_AppendResult(interp, (const char *)index->GetFqFileName(), NULL);
     
     break;
     
@@ -106,7 +114,7 @@ int TclIndex::Command (int objc, struct Tcl_Obj * CONST objv[])
           return TCL_ERROR;
         }
     }
-    Tcl_AppendResult(interp, (const char *)index->GetFileName(), NULL);
+    Tcl_AppendResult(interp, (const char *)index->GetFqFileName(), NULL);
 
     break;
 
@@ -116,7 +124,7 @@ int TclIndex::Command (int objc, struct Tcl_Obj * CONST objv[])
       Tcl_WrongNumArgs(interp, 2, objv, NULL);
       return TCL_ERROR;
     } else {
-      Tcl_AppendResult(interp, (const char *)index->GetFileName(), NULL);
+      Tcl_AppendResult(interp, (const char *)index->GetFqFileName(), NULL);
     }
     
     break;
@@ -137,7 +145,7 @@ int TclIndex::Command (int objc, struct Tcl_Obj * CONST objv[])
     if (objc != 2) {
       Tcl_WrongNumArgs(interp, 2, objv, NULL);
       return TCL_ERROR;
-    } else if (CheckRC(index->Reindex(&p)) != TCL_OK) {
+    } else if (CheckRC(index->Reindex(&vpTag)) != TCL_OK) {
       return TCL_ERROR;
     }
 
@@ -174,13 +182,15 @@ int TclIndex::Command (int objc, struct Tcl_Obj * CONST objv[])
       Tcl_WrongNumArgs(interp, 2, objv, NULL);
       return TCL_ERROR;
     }
+DEBUGLOG("KEY tag=" << vpTag);
     switch ((enum commands)command) {
-    case cmFirst: rc = index->GetFirstKey(&p, 1); break;
-    case cmLast: rc = index->GetLastKey(&p, 1); break;
-    case cmPrev: rc = index->GetPrevKey(&p, 1); break;
-    case cmNext: rc = index->GetNextKey(&p, 1); break;
+    case cmFirst: rc = index->GetFirstKey(&vpTag, 1); break;
+    case cmLast: rc = index->GetLastKey(&vpTag, 1); break;
+    case cmPrev: rc = index->GetPrevKey(&vpTag, 1); break;
+    case cmNext: rc = index->GetNextKey(&vpTag, 1); break;
     default: rc = XB_NO_ERROR;
     }
+DEBUGLOG("KEY rc=" << rc);
     // XB_INVALID_RECORD is for FirstKey on empty index
     if (rc == XB_INVALID_RECORD || rc == XB_BOF || rc == XB_EOF) {
       Tcl_SetObjResult(interp, Tcl_NewIntObj(0));
@@ -221,7 +231,7 @@ int TclIndex::Command (int objc, struct Tcl_Obj * CONST objv[])
       x->DisplayError( iRc );
  */      
       xbString s = ((TclDbf *)pParent)->DecodeTclString(Tcl_GetString(objv[2]));
-      rc = index->FindKey(&p, s, 1);
+      rc = index->FindKey(&vpTag, s, 1);
 
       // XB_NOT_FOUND is documented, XB_EOF is real NOTFOUND
       if (rc == XB_NOT_FOUND) {

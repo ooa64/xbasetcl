@@ -1,3 +1,5 @@
+#include <assert.h>
+
 #include "tcldbf.hpp"
 #include "tclfilter.hpp"
 #include "tclndx.hpp"
@@ -50,6 +52,8 @@ int TclDbf::Command (int objc, struct Tcl_Obj * CONST objv[])
     return TCL_ERROR;
   }
 
+  assert(dbf);
+
   switch ((enum commands)(index)) {
 
   case cmEncoding:
@@ -83,19 +87,20 @@ int TclDbf::Command (int objc, struct Tcl_Obj * CONST objv[])
     } else {
       if (objc == 5) {
         if (strcmp(Tcl_GetString(objv[2]), "-overlay") == 0) {
-          rc = Create(objv[3], objv[4], XB_OVERLAY);
+          if (Create(objv[3], objv[4], XB_OVERLAY) != TCL_OK) {
+            return TCL_ERROR;
+          }
         } else {
           Tcl_AppendResult(interp, "bad option ", Tcl_GetString(objv[4]), NULL);
           return TCL_ERROR;
         }
-      } else {
-        rc = Create(objv[2], objv[3], XB_DONTOVERLAY);
-      }
-      if (CheckRC(rc) != TCL_OK) {
-        return TCL_ERROR;
+      } else {  
+        if (Create(objv[2], objv[3], XB_DONTOVERLAY) != TCL_OK) {
+          return TCL_ERROR;
+        }
       }
     }
-    Tcl_AppendResult(interp, (const char *)dbf->GetFileName(), NULL);
+    Tcl_AppendResult(interp, (const char *)dbf->GetFqFileName(), NULL);
 
     break;
 
@@ -115,7 +120,10 @@ int TclDbf::Command (int objc, struct Tcl_Obj * CONST objv[])
         return TCL_ERROR;
       }
     
-      rc = dbf->Open(xdbname);
+      rc = dbf->Close();
+      if (rc == XB_NO_ERROR) {
+        rc = dbf->Open(xdbname, xdbname);
+      }
 
       Tcl_DStringFree(&s);
 
@@ -123,7 +131,7 @@ int TclDbf::Command (int objc, struct Tcl_Obj * CONST objv[])
         return TCL_ERROR;
       }
     }
-    Tcl_AppendResult(interp, (const char *)dbf->GetFileName(), NULL);
+    Tcl_AppendResult(interp, (const char *)dbf->GetFqFileName(), NULL);
 
     break;
 
@@ -203,7 +211,7 @@ int TclDbf::Command (int objc, struct Tcl_Obj * CONST objv[])
       Tcl_WrongNumArgs(interp, 2, objv, NULL);
       return TCL_ERROR;
     } else {
-      Tcl_AppendResult(interp, (const char *)dbf->GetFileName(), NULL);
+      Tcl_AppendResult(interp, (const char *)dbf->GetFqFileName(), NULL);
     }
 
     break;
@@ -529,9 +537,9 @@ int TclDbf::Create (Tcl_Obj * dbname, Tcl_Obj * schema, int overlay)
     
       rc = dbf->Close();
       if (rc == XB_NO_ERROR) {
-        // FIXME: sAlias: "" or justfilename ?
+        // FIXME: sAlias: fullfilename or justfilename ?
         // FIXME: iShareMode: XB_SINGLE_USER or XB_MULTI_USER ?
-        rc = dbf->CreateTable(xdbname, "", xschema, overlay, XB_SINGLE_USER);
+        rc = dbf->CreateTable(xdbname, xdbname, xschema, overlay, XB_SINGLE_USER);
       }
 
       Tcl_DStringFree(&s);
@@ -621,7 +629,7 @@ int TclDbf::Fields (Tcl_Obj * result, Tcl_Obj * namev, Tcl_Obj * valuev)
       if (value != NULL) {
         int rc;
         char ftypech;
-        if (CheckRC(dbf->GetFieldType(i,ftypech)) != TCL_OK) {
+        if (CheckRC(dbf->GetFieldType(fno,ftypech)) != TCL_OK) {
           return TCL_ERROR;
         }
         switch (ftypech) {
@@ -629,11 +637,11 @@ int TclDbf::Fields (Tcl_Obj * result, Tcl_Obj * namev, Tcl_Obj * valuev)
           {
             const char * s = DecodeTclString(Tcl_GetString(value));
             if (strlen(s)) {
-              DEBUGLOG("UpdateMemo " << dbf->GetFileName() << " #"  << fno << " = " << \
+              DEBUGLOG("UpdateMemo " << dbf->GetFileName().Str() << " #"  << fno << " = " << \
                        strlen(s) << " chars: " << s);
               rc = dbf->UpdateMemoField(fno, s);
             } else {
-              DEBUGLOG("DeleteMemo " << dbf->GetFileName() << " #" << fno);
+              DEBUGLOG("DeleteMemo " << dbf->GetFileName().Str() << " #" << fno);
               rc = dbf->UpdateMemoField(fno, "");
             }
           }
@@ -641,7 +649,7 @@ int TclDbf::Fields (Tcl_Obj * result, Tcl_Obj * namev, Tcl_Obj * valuev)
         case 'L':
           {
             int b;
-            if (Tcl_GetBooleanFromObj(interp, value, &b) == TCL_OK) {
+            if (Tcl_GetBooleanFromObj(NULL, value, &b) == TCL_OK) {
               rc = dbf->PutLogicalField(fno, b ? "T" : "F");
             } else {
               rc = dbf->PutLogicalField(fno, Tcl_GetString(value));
@@ -679,9 +687,9 @@ int TclDbf::Fields (Tcl_Obj * result, Tcl_Obj * namev, Tcl_Obj * valuev)
         int flen = buf.GetSize() > 0 ? buf.GetSize() - 1 : 0;
         obj = Tcl_NewStringObj(EncodeTclString(buf.Str()), flen);
 #if DEBUG        
-        buf[flen] = 0;
-        DEBUGLOG("GetMemo " << dbf->GetDbfName() << " #" << fno << " = " << \
-                 flen << " chars: " << buf);
+        // buf[flen] = 0; ???
+        DEBUGLOG("GetMemo " << dbf->GetFileName().Str() << " #" << fno << " = " << \
+                 flen << " chars: " << buf.Str());
 #endif
       } else {
         obj = Tcl_NewStringObj(NULL, 0);
@@ -691,7 +699,7 @@ int TclDbf::Fields (Tcl_Obj * result, Tcl_Obj * namev, Tcl_Obj * valuev)
       //obj = Tcl_NewIntObj(dbf->GetLogicalField(fno));
       //obj = Tcl_NewStringObj(dbf->GetField(fno), -1);
       //break;
-      case 'C':
+    case 'C':
       //{
       //    xbString s = dbf->GetStringField(fno); 
       //    while (s[0] && s[0] == ' ') s.remove(0, 1);
@@ -711,7 +719,7 @@ int TclDbf::Fields (Tcl_Obj * result, Tcl_Obj * namev, Tcl_Obj * valuev)
           // } else {
           //   obj = Tcl_NewStringObj(EncodeTclString(s), -1);
           // }
-          obj = Tcl_NewStringObj(EncodeTclString(s), -1);
+          obj = Tcl_NewStringObj(EncodeTclString(s.Trim()), -1);
         }
         break;
       //case 'N':

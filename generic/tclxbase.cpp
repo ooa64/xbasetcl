@@ -1,7 +1,8 @@
 // $Id$
 
 #include "tclxbase.hpp"
-#include "tcldbf.hpp"
+#include "tcldbf3.hpp"
+#include "tcldbf4.hpp"
 
 #if defined(DEBUG) && !defined(TCLXBASE_DEBUG)
 #   undef DEBUGLOG
@@ -21,10 +22,10 @@ void TclXbase::Cleanup () {
 int TclXbase::Command (int objc, struct Tcl_Obj * CONST objv[])
 {
   static CONST char *commands[] = {
-    "version", "dateformat", "encoding", "dbf", 0L
+    "version", "dateformat", "encoding", "list", "dbf", 0L
   };
   enum commands {
-    cmVersion, cmDateformat, cmEncoding, cmDbf
+    cmVersion, cmDateformat, cmEncoding, cmList, cmDbf
   };
   int index;
 
@@ -84,16 +85,44 @@ int TclXbase::Command (int objc, struct Tcl_Obj * CONST objv[])
 
     break;
     
-  case cmDbf:
-    
-    if (objc != 3) {
-      Tcl_WrongNumArgs(interp, 2, objv, "name");
+  case cmList:
+
+    if (objc > 2) {
+      Tcl_WrongNumArgs(interp, 2, objv, NULL);
       return TCL_ERROR;
+    } else {
+      Tcl_Obj * result = Tcl_GetObjResult(interp);
+      for (int i = 1; i <= xbase->GetOpenTableCount(); ++i) {
+        xbDbf * dbf = xbase->GetDbfPtr(i);
+        if (dbf) {
+          Tcl_ListObjAppendElement(NULL, result, 
+              Tcl_NewStringObj((const char *)dbf->GetFqFileName(), -1));
+        }
+      }
     }
-    (void) new TclDbf(interp, Tcl_GetString(objv[2]), this);
-    Tcl_SetObjResult(interp, objv[2]);
 
     break;
+
+  case cmDbf:
+
+    if (objc < 3 || objc > 4) {
+      Tcl_WrongNumArgs(interp, 2, objv, "?-dbf3|-dbf4? name");
+      return TCL_ERROR;
+    } else if (objc > 3) {
+
+      if (strcmp(Tcl_GetString(objv[2]), "-dbf3") == 0) {
+        (void) new TclDbf3(interp, Tcl_GetString(objv[3]), this);
+      } else if (strcmp(Tcl_GetString(objv[2]), "-dbf4") == 0) {
+        (void) new TclDbf4(interp, Tcl_GetString(objv[3]), this);
+      } else {
+        Tcl_AppendResult(interp, "bad option ", Tcl_GetString(objv[2]), NULL);
+        return TCL_ERROR;
+      }
+    } else {
+      (void) new TclDbf4(interp, Tcl_GetString(objv[2]), this);
+    }
+
+    Tcl_SetObjResult(interp, objv[objc - 1]);   
 
   } // switch index
 

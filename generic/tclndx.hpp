@@ -3,20 +3,13 @@
 #ifndef TCLNDX_H
 #define TCLNDX_H
 
-#include <xbase.h>
-#include <xbindex.h>
-#include <tcl.h>
-
-#include "tclcmd.hpp"
-#include "tclxbase.hpp"
-#include "tcldbf.hpp"
 #include "tclindex.hpp"
 
 class TclNdx : public TclIndex {
 
 public:
 
-  TclNdx (Tcl_Interp * interp, char * name, TclDbf * tcldbf)
+  TclNdx(Tcl_Interp * interp, char * name, TclDbf * tcldbf)
     : TclIndex(interp, name, tcldbf) {
     index = new xbIxNdx(tcldbf->Dbf());
   };

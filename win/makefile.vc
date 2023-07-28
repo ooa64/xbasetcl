@@ -74,3 +74,15 @@ $<
 
 .SUFFIXES:
 .SUFFIXES:.cpp .rc
+
+#$(TMP_DIR)\xbasetcl.obj: xbasetcl.cpp
+#
+#$(TMP_DIR)\tclcmd.obj: tclcmd.cpp tclcmd.hpp
+#
+#$(TMP_DIR)\tclxbase.obj: tclxbase.cpp tclxbase.hpp
+#
+#$(TMP_DIR)\tcldbf.obj: tcldbf.cpp tcldbf.hpp tcldbf3.hpp tcldbf4.hpp
+#
+#$(TMP_DIR)\tclindex.obj: tclindex.cpp tclindex.hpp tclmdx.hpp tclndx.hpp
+#
+#$(TMP_DIR)\tclfilter.obj: tclfilter.cpp tclfilter.hpp

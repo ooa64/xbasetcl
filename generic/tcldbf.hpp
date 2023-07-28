@@ -3,12 +3,7 @@
 #ifndef TCLDBF_H
 #define TCLDBF_H
 
-#include <xbase.h>
-#include <tcl.h>
-
-#include "tclcmd.hpp"
 #include "tclxbase.hpp"
-#include "tcldbf.hpp"
 
 const unsigned MaxFieldNameLength = 10;
 
@@ -22,10 +17,8 @@ class TclDbf : public TclCmd {
 
 public:
 
-  TclDbf (Tcl_Interp * interp, char * name, TclXbase * tclxbase)
-    : TclCmd(interp, name, tclxbase) {
-    dbf = new xbDbf4(XBase());
-
+  TclDbf(Tcl_Interp * interp, char * name, TclXbase * tclxbase)
+    : TclCmd(interp, name, tclxbase), dbf(NULL) {
 #ifdef TCL_UTF_MAX
     encoding = NULL;
     Tcl_DStringInit(&dstring);
@@ -37,7 +30,6 @@ public:
     Tcl_DStringFree(&dstring);
     Tcl_FreeEncoding(encoding);
 #endif
-    delete dbf;
   };
 
 #ifdef TCL_UTF_MAX
@@ -93,4 +85,3 @@ private:
 };
 
 #endif
-
