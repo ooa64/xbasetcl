@@ -408,84 +408,83 @@ tcltest::test xbase-3.10.1 "append records back" {
 foreach memover {3 4} {
 
     tcltest::test xbase-4.$memover.1.0 "create file with memo w/o version" {
-        xbase dbf -dbf$memover testmemo
-        testmemo create -overlay testmemo.dbf $test_memoschema
-    } [file nativename ./testmemo.dbf]
+        xbase dbf -dbf$memover testm
+        testm create -overlay testm.dbf $test_memoschema
+    } [file nativename ./testm.dbf]
 
     tcltest::test xbase-4.$memover.1.1 "memo w/o version check" {
-        list [testmemo append {{} memo}] [testmemo version]
+        list [testm append {{} memo}] [testm version]
     } [list {{} memo} $memover]
 
     tcltest::test xbase-4.$memover.1.2 "memo w/o version cleanup" {
-        testmemo close
-        file delete testmemo.dbf
-        file delete testmemo.dbt
+        testm close
+        file delete testm.dbf
+        file delete testm.dbt
     } {}
 
     tcltest::test xbase-4.$memover.2 "create file with memo" {
-        testmemo create testmemo.dbf $test_memoschema
-    } [file nativename ./testmemo.dbf]
+        testm create testm.dbf $test_memoschema
+    } [file nativename ./testm.dbf]
 
     tcltest::test xbase-4.$memover.3 "append some memos blank/append/update" {
         set result {}
         foreach record $test_memorecords {
-            testmemo blank
-            testmemo append
-            lappend result [testmemo update $record]
+            testm blank
+            testm append
+            lappend result [testm update $record]
         }
         set result
     } $test_memorecords
 
     tcltest::test xbase-4.$memover.4 "read some memos" {
         set result {}
-        testmemo first
-        lappend result [testmemo record]
-        while {[testmemo next]} {
-            lappend result [testmemo record]
+        testm first
+        lappend result [testm record]
+        while {[testm next]} {
+            lappend result [testm record]
         }
         set result
     } $test_memorecords
 
     tcltest::test xbase-4.$memover.5 "memo cleanup" {
-        testmemo close
-        file delete testmemo.dbf
-        file delete testmemo.dbt
+        testm close
+        file delete testm.dbf
+        file delete testm.dbt
     } {}
 
     tcltest::test xbase-4.$memover.6 "create file with memo again" {
-        testmemo create testmemo.dbf $test_memoschema
-    } [file nativename ./testmemo.dbf]
+        testm create testm.dbf $test_memoschema
+    } [file nativename ./testm.dbf]
 
     tcltest::test xbase-4.$memover.7 "append some memos using simple append" {
         set result {}
         foreach record $test_memorecords {
-            lappend result [testmemo append $record]
+            lappend result [testm append $record]
         }
         set result
     } $test_memorecords
 
     tcltest::test xbase-4.$memover.8 "read some memos" {
         set result {}
-        testmemo first
-        lappend result [testmemo record]
-        while {[testmemo next]} {
-            lappend result [testmemo record]
+        testm first
+        lappend result [testm record]
+        while {[testm next]} {
+            lappend result [testm record]
         }
         set result
     } $test_memorecords
 
     tcltest::test xbase-4.$memover.9 "lost memos" {
        set result {}
-       testmemo blank
-       testmemo append
+       testm blank
+       testm append
        set result
     } $test_memorecords
 
     tcltest::test xbase-4.$memover.10 "memos cleanup" {
-        rename testmemo {}
-        #file delete testmemo.dbf
-        #file delete testmemo.dbt
-    } {}
+        rename testm {}
+        catch {file delete testm.dbf; file delete testm.dbt}
+    } 0
 
 } ;# foreach memover
 
@@ -522,7 +521,7 @@ foreach {indextype indexnum} {ndx 1 mdx 2} {
         testi2 reindex
     } {}
 
-    tcltest::test xbase-5.$indexnum.4 "simple $indextype index position" broken {
+    tcltest::test xbase-5.$indexnum.4 "simple $indextype index position" ${indextype}Broken {
         set result [testi size]
         lappend result [testi1 first]
         while {[testi1 next]} {
@@ -543,6 +542,13 @@ foreach {indextype indexnum} {ndx 1 mdx 2} {
         concat [list $result] [testi size]
     } {{Key Not Unique} 3}
 
+    tcltest::test xbase-5.$indexnum.4 "close key" {
+        testi close
+        rename testi {}
+        file delete testi1.$indextype
+        file delete testi2.$indextype
+    } {}
+
 } ;# foreach indextype indexnum
 
 unset indextype indexnum
@@ -552,7 +558,7 @@ tcltest::test xbase-6.1 "create simple testdbf filter" {
 } {testf1}
 
 tcltest::test xbase-6.2 "create simple index filter" {
-    testi1 filter testf2 "F3 > 10"
+    testdbf filter testf2 "F3 > 10"
 } {testf2}
 
 tcltest::test xbase-6.3 "simple testdbf filter position" {
@@ -649,10 +655,11 @@ tcltest::test xbase-9.3 "delete xbase" {
 
 tcltest::test xbase-9.4 "delete files" {
     file delete test.dbf
+    file delete testi.dbf
+    file delete testm.dbf
+    file delete testi.mdx
     file delete testi1.ndx
-    file delete testi1.ntx
     file delete testi2.ndx
-    file delete testi2.ntx
 } {}
 
 catch {tcltest::cleanupTests 0}
