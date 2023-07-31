@@ -18,21 +18,15 @@ public:
 
   TclXbase(Tcl_Interp * interp, CONST char * name) : TclCmd(interp, name) {
     xbase = new xbXBase();
-#ifdef TCL_UTF_MAX
     encoding = NULL;
-#endif
   };
   
   virtual ~TclXbase() {
-#ifdef TCL_UTF_MAX
     Tcl_FreeEncoding(encoding);
-#endif
     delete xbase;
   };
 
-#ifdef TCL_UTF_MAX
   Tcl_Encoding Encoding() {return encoding;};
-#endif
 
   xbXBase * XBase() {return xbase;};
 
@@ -51,9 +45,7 @@ protected:
 
 private:
 
-#ifdef TCL_UTF_MAX
   Tcl_Encoding encoding;
-#endif
 
   virtual void Cleanup();
   virtual int Command (int objc, struct Tcl_Obj * CONST objv[]);

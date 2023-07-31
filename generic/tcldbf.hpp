@@ -3,6 +3,8 @@
 #ifndef TCLDBF_H
 #define TCLDBF_H
 
+#include <assert.h>
+
 #include "tclxbase.hpp"
 
 const unsigned MaxFieldNameLength = 10;
@@ -18,21 +20,16 @@ class TclDbf : public TclCmd {
 public:
 
   TclDbf(Tcl_Interp * interp, char * name, TclXbase * tclxbase)
-    : TclCmd(interp, name, tclxbase), dbf(NULL) {
-#ifdef TCL_UTF_MAX
-    encoding = NULL;
+    : TclCmd(interp, name, tclxbase), dbf(NULL), encoding(NULL) {
+    assert(tclxbase);
     Tcl_DStringInit(&dstring);
-#endif
   };
 
   virtual ~TclDbf() {
-#ifdef TCL_UTF_MAX
     Tcl_DStringFree(&dstring);
     Tcl_FreeEncoding(encoding);
-#endif
   };
 
-#ifdef TCL_UTF_MAX
   inline Tcl_Encoding Encoding() {
     return (encoding ? encoding : ((TclXbase *)pParent)->Encoding());
   };
@@ -54,11 +51,6 @@ public:
   void ResetTclString() {
     Tcl_DStringFree(&dstring);
   };
-#else
-  inline char * EncodeTclString(const char * s) {return (char *)s;};
-  inline char * DecodeTclString(const char * s) {return (char *)s;};
-  inline void ResetTclString() {};
-#endif
 
   inline int CheckRC (int rc) {return ((TclXbase *)pParent)->CheckRC(rc);};
   
@@ -71,10 +63,8 @@ protected:
 
 private:
 
-#ifdef TCL_UTF_MAX
   Tcl_Encoding encoding;
   Tcl_DString dstring;
-#endif
 
   virtual void Cleanup();
   virtual int Command (int objc, struct Tcl_Obj * CONST objv[]);

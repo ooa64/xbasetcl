@@ -22,10 +22,10 @@ void TclXbase::Cleanup () {
 int TclXbase::Command (int objc, struct Tcl_Obj * CONST objv[])
 {
   static CONST char *commands[] = {
-    "version", "dateformat", "encoding", "list", "dbf", 0L
+    "version", "dateformat", "encoding", "list", "dbf", "open", 0L
   };
   enum commands {
-    cmVersion, cmDateformat, cmEncoding, cmList, cmDbf
+    cmVersion, cmDateformat, cmEncoding, cmList, cmDbf, cmOpen
   };
   int index;
 
@@ -65,7 +65,6 @@ int TclXbase::Command (int objc, struct Tcl_Obj * CONST objv[])
 
   case cmEncoding:
 
-#ifdef TCL_UTF_MAX
     if (objc > 3) {
       Tcl_WrongNumArgs(interp, 2, objv, "?encoding?");
       return TCL_ERROR;
@@ -79,9 +78,6 @@ int TclXbase::Command (int objc, struct Tcl_Obj * CONST objv[])
       }
     }
     Tcl_AppendResult(interp, Tcl_GetEncodingName(encoding), NULL);
-#else
-    Tcl_AppendResult(interp, "identity", NULL);
-#endif
 
     break;
     
@@ -109,7 +105,6 @@ int TclXbase::Command (int objc, struct Tcl_Obj * CONST objv[])
       Tcl_WrongNumArgs(interp, 2, objv, "?-dbf3|-dbf4? name");
       return TCL_ERROR;
     } else if (objc > 3) {
-
       if (strcmp(Tcl_GetString(objv[2]), "-dbf3") == 0) {
         (void) new TclDbf3(interp, Tcl_GetString(objv[3]), this);
       } else if (strcmp(Tcl_GetString(objv[2]), "-dbf4") == 0) {
@@ -121,8 +116,39 @@ int TclXbase::Command (int objc, struct Tcl_Obj * CONST objv[])
     } else {
       (void) new TclDbf4(interp, Tcl_GetString(objv[2]), this);
     }
+    Tcl_SetObjResult(interp, objv[objc - 1]);
 
-    Tcl_SetObjResult(interp, objv[objc - 1]);   
+    break;
+
+  case cmOpen:
+
+    if (objc < 4 || objc > 5) {
+      Tcl_WrongNumArgs(interp, 2, objv, "filename name ?alias?");
+      return TCL_ERROR;
+    } else {
+      xbDbf * dbf;
+      Tcl_DString s;
+      if (CheckRC(xbase->OpenHighestVersion(Tcl_TranslateFileName(interp, Tcl_GetString(objv[2]), &s), 
+          (objc == 5) ? Tcl_GetString(objv[4]) : Tcl_GetString(objv[2]), &dbf)) != TCL_OK) {
+        Tcl_DStringFree(&s);
+        return TCL_ERROR;
+      }
+      DEBUGLOG("TclXbase cmOpen " << Tcl_DStringValue(&s) << " as " << dbf->GetVersion());
+      if (dynamic_cast<xbDbf3*>(dbf)) {
+        (void) new TclDbf3(interp, Tcl_GetString(objv[3]), this, dynamic_cast<xbDbf3*>(dbf));
+      } else if (dynamic_cast<xbDbf4*>(dbf)) {
+        (void) new TclDbf4(interp, Tcl_GetString(objv[3]), this, dynamic_cast<xbDbf4*>(dbf));
+      } else {
+        delete dbf;
+        Tcl_AppendResult(interp, "invalid file version ", Tcl_NewIntObj(dbf->GetVersion()), NULL);
+        Tcl_DStringFree(&s);
+        return TCL_ERROR;
+      }
+      Tcl_SetObjResult(interp, objv[3]);
+      Tcl_DStringFree(&s);
+    }
+
+    break;
 
   } // switch index
 

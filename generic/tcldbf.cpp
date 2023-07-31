@@ -26,18 +26,18 @@ void TclDbf::Cleanup () {
 int TclDbf::Command (int objc, struct Tcl_Obj * CONST objv[])
 {
   static CONST char *commands[] = {
-    "create", "open",    "close",  "pack",   "zap",      "commit",
-    "name",   "version", "status", "schema", "encoding",
-    "blank",  "fields",  "record", "append", "update",   "deleted", 
-    "first",  "last",    "prev",   "next",   "goto",     "position", "size",
+    "create", "open",   "close",   "pack",   "zap",      
+    "name",   "alias",  "version", "status", "schema", "autocommit", "encoding",
+    "blank",  "fields", "record",  "append", "update", "deleted",    "commit",   "abort",
+    "first",  "last",   "prev",    "next",   "goto",   "position",   "size",
     "index",  "filter",
     0L
   };
   enum commands {
-    cmCreate, cmOpen,    cmClose,  cmPack,   cmZap,      cmCommit,
-    cmName,   cmVersion, cmStatus, cmSchema, cmEncoding,
-    cmBlank,  cmFields,  cmRecord, cmAppend, cmUpdate,   cmDeleted,
-    cmFirst,  cmLast,    cmPrev,   cmNext,   cmGoto,     cmPosition, cmSize,
+    cmCreate, cmOpen,   cmClose,   cmPack,   cmZap,
+    cmName,   cmAlias,  cmVersion, cmStatus, cmSchema, cmAutocommit, cmEncoding,
+    cmBlank,  cmFields, cmRecord,  cmAppend, cmUpdate, cmDeleted,    cmCommit,   cmAbort,
+    cmFirst,  cmLast,   cmPrev,    cmNext,   cmGoto,   cmPosition,   cmSize,
     cmIndex,  cmFilter
   };
   int index, rc;
@@ -55,29 +55,6 @@ int TclDbf::Command (int objc, struct Tcl_Obj * CONST objv[])
   assert(dbf);
 
   switch ((enum commands)(index)) {
-
-  case cmEncoding:
-
-#ifdef TCL_UTF_MAX
-    if (objc > 3) {
-      Tcl_WrongNumArgs(interp, 2, objv, "?encoding?");
-      return TCL_ERROR;
-    }
-    else if (objc == 3) {
-      Tcl_Encoding e = Tcl_GetEncoding(interp, Tcl_GetString(objv[2]));
-      if (e) {
-        Tcl_FreeEncoding(encoding);
-        encoding = e;
-      } else {
-        return TCL_ERROR;
-      }
-    }
-    Tcl_AppendResult(interp, Tcl_GetEncodingName(Encoding()), NULL);
-#else
-    Tcl_AppendResult(interp, "identity", NULL);
-#endif
-    
-    break;
 
   case cmCreate:
 
@@ -106,8 +83,8 @@ int TclDbf::Command (int objc, struct Tcl_Obj * CONST objv[])
 
   case cmOpen:
 
-    if (objc != 3) {
-      Tcl_WrongNumArgs(interp, 2, objv, "filename");
+    if (objc < 3 || objc > 4) {
+      Tcl_WrongNumArgs(interp, 2, objv, "filename ?alias?");
       return TCL_ERROR;
     } else {
       int rc;
@@ -122,7 +99,7 @@ int TclDbf::Command (int objc, struct Tcl_Obj * CONST objv[])
     
       rc = dbf->Close();
       if (rc == XB_NO_ERROR) {
-        rc = dbf->Open(xdbname, xdbname);
+        rc = dbf->Open(xdbname, (objc == 4) ? Tcl_GetString(objv[3]) : Tcl_GetString(objv[2]));
       }
 
       Tcl_DStringFree(&s);
@@ -151,9 +128,6 @@ int TclDbf::Command (int objc, struct Tcl_Obj * CONST objv[])
     if (objc != 2) {
       Tcl_WrongNumArgs(interp, 2, objv, NULL);
       return TCL_ERROR;
-    } else if (dbf->GetDbfStatus() == XB_CLOSED) {
-      Tcl_AppendResult(interp, "database not open", NULL);
-      return TCL_ERROR;
     } else if (CheckRC(dbf->Pack()) != TCL_OK) {
       return TCL_ERROR;
     }
@@ -165,46 +139,12 @@ int TclDbf::Command (int objc, struct Tcl_Obj * CONST objv[])
     if (objc != 2) {
       Tcl_WrongNumArgs(interp, 2, objv, NULL);
       return TCL_ERROR;
-    } else if (dbf->GetDbfStatus() == XB_CLOSED) {
-      Tcl_AppendResult(interp, "database not open", NULL);
-      return TCL_ERROR;
     } else if (CheckRC(dbf->Zap()) != TCL_OK) {
       return TCL_ERROR;
     }
 
     break;
 
-  case cmCommit:
-
-    if (objc != 2) {
-      Tcl_WrongNumArgs(interp, 2, objv, NULL);
-      return TCL_ERROR;
-    } else if (dbf->GetDbfStatus() == XB_CLOSED) {
-      Tcl_AppendResult(interp, "database not open", NULL);
-      return TCL_ERROR;
-    } else {
-      dbf->Commit();
-    }
-
-    break;
-
-  case cmStatus:
-
-    if (objc != 2) {
-      Tcl_WrongNumArgs(interp, 2, objv, NULL);
-      return TCL_ERROR;
-    } else {
-      switch (dbf->GetDbfStatus()) {
-      case XB_CLOSED:  Tcl_AppendResult(interp, "closed", NULL); break;
-      case XB_OPEN:    Tcl_AppendResult(interp, "open", NULL); break;
-      case XB_UPDATED: Tcl_AppendResult(interp, "updated", NULL); break;
-      default:
-        Tcl_SetObjResult(interp, Tcl_NewIntObj(dbf->GetDbfStatus())); break;
-      }
-    }
-    
-    break;
-    
   case cmName:
 
     if (objc != 2) {
@@ -212,6 +152,17 @@ int TclDbf::Command (int objc, struct Tcl_Obj * CONST objv[])
       return TCL_ERROR;
     } else {
       Tcl_AppendResult(interp, (const char *)dbf->GetFqFileName(), NULL);
+    }
+
+    break;
+
+  case cmAlias:
+
+    if (objc != 2) {
+      Tcl_WrongNumArgs(interp, 2, objv, NULL);
+      return TCL_ERROR;
+    } else {
+      Tcl_AppendResult(interp, (const char *)dbf->GetTblAlias(), NULL);
     }
 
     break;
@@ -227,6 +178,22 @@ int TclDbf::Command (int objc, struct Tcl_Obj * CONST objv[])
     
     break;
 
+  case cmStatus:
+
+    if (objc != 2) {
+      Tcl_WrongNumArgs(interp, 2, objv, NULL);
+      return TCL_ERROR;
+    } else {
+      switch (dbf->GetDbfStatus()) {
+        case XB_CLOSED:  Tcl_AppendResult(interp, "closed", NULL); break;
+        case XB_OPEN:    Tcl_AppendResult(interp, "open", NULL); break;
+        case XB_UPDATED: Tcl_AppendResult(interp, "updated", NULL); break;
+        default:         Tcl_SetObjResult(interp, Tcl_NewIntObj(dbf->GetDbfStatus())); break;
+      }
+    }
+    
+    break;
+    
   case cmSchema:
 
     if (objc == 2) {
@@ -252,6 +219,43 @@ int TclDbf::Command (int objc, struct Tcl_Obj * CONST objv[])
       return TCL_ERROR;
     }
 
+    break;
+
+  case cmAutocommit:
+    
+    if (objc > 3) {
+      Tcl_WrongNumArgs(interp, 2, objv, "?boolean?");
+      return TCL_ERROR;
+    } else if (objc == 3) {
+      int autocommit;
+      if (Tcl_GetBooleanFromObj(interp, objv[2], &autocommit)) {
+        return TCL_ERROR;
+      }
+      if (CheckRC(dbf->SetAutoCommit(autocommit)) != TCL_OK) {
+        return TCL_ERROR;
+      }
+    }
+    Tcl_SetObjResult(interp, Tcl_NewIntObj(dbf->GetAutoCommit()));
+    
+    break;
+
+  case cmEncoding:
+
+    if (objc > 3) {
+      Tcl_WrongNumArgs(interp, 2, objv, "?encoding?");
+      return TCL_ERROR;
+    }
+    else if (objc == 3) {
+      Tcl_Encoding e = Tcl_GetEncoding(interp, Tcl_GetString(objv[2]));
+      if (e) {
+        Tcl_FreeEncoding(encoding);
+        encoding = e;
+      } else {
+        return TCL_ERROR;
+      }
+    }
+    Tcl_AppendResult(interp, Tcl_GetEncodingName(Encoding()), NULL);
+    
     break;
 
   case cmBlank:
@@ -296,17 +300,19 @@ int TclDbf::Command (int objc, struct Tcl_Obj * CONST objv[])
     if (objc > 3) {
       Tcl_WrongNumArgs(interp, 2, objv, "?values?");
       return TCL_ERROR;
-    } else if (dbf->GetDbfStatus() == XB_CLOSED) {
-      Tcl_AppendResult(interp, "database not open", NULL);
-      return TCL_ERROR;
     } else if (Fields(Tcl_GetObjResult(interp), \
                       NULL, (objc == 3) ? objv[2] : NULL) != TCL_OK) {
       return TCL_ERROR;
     }
+    // NOTE: xbase64-4.1.4 crashes updating unopened dbf
+    if (dbf->GetDbfStatus() == XB_CLOSED && index == cmUpdate) {
+      Tcl_AppendResult(interp, "(crash)", NULL);
+      return TCL_ERROR;
+    }
     switch ((enum commands)index) {
-    case cmAppend: rc = dbf->AppendRecord(); break;
-    case cmUpdate: rc = dbf->PutRecord(); break;
-    default: rc = XB_NO_ERROR;
+      case cmAppend: rc = dbf->AppendRecord(); break;
+      case cmUpdate: rc = dbf->PutRecord(); break;
+      default: rc = XB_NO_ERROR;
     }
     if (CheckRC(rc) != TCL_OK) {
       return TCL_ERROR;
@@ -314,17 +320,39 @@ int TclDbf::Command (int objc, struct Tcl_Obj * CONST objv[])
     
     break;
     
+  case cmCommit:
+
+    if (objc != 2) {
+      Tcl_WrongNumArgs(interp, 2, objv, NULL);
+      return TCL_ERROR;
+    } else {
+      dbf->Commit();
+    }
+
+    break;
+
+  case cmAbort:
+
+    if (objc != 2) {
+      Tcl_WrongNumArgs(interp, 2, objv, NULL);
+      return TCL_ERROR;
+    } else {
+      dbf->Abort();
+    }
+
+    break;
+
   case cmDeleted:
     
-    if (objc > 3) {
+    if (objc < 2 || objc > 3) {
       Tcl_WrongNumArgs(interp, 2, objv, "?boolean?");
       return TCL_ERROR;
     } else if (objc == 3) {
-      int del;
-      if (Tcl_GetBooleanFromObj(interp, objv[2], &del)) {
+      int deleted;
+      if (Tcl_GetBooleanFromObj(interp, objv[2], &deleted)) {
         return TCL_ERROR;
       }
-      if (del) {
+      if (deleted) {
         if (CheckRC(dbf->DeleteRecord()) != TCL_OK) {
           return TCL_ERROR;
         }

@@ -39,7 +39,7 @@ int TclIndex::Command (int objc, struct Tcl_Obj * CONST objv[])
   // index->SetCurTag((short)0);
   void *vpTag = index->GetTag(0); // FIXME: select a tag?
 
-DEBUGLOG("CMD" << command << "tag=" << vpTag);
+DEBUGLOG("CMD=" << command << " tag=" << vpTag);
 
   switch ((enum commands)(command)) {
 
