@@ -26,18 +26,18 @@ void TclDbf::Cleanup () {
 int TclDbf::Command (int objc, struct Tcl_Obj * CONST objv[])
 {
   static CONST char *commands[] = {
-    "create", "open",   "close",   "pack",   "zap",      
-    "name",   "alias",  "version", "status", "schema", "autocommit", "encoding",
-    "blank",  "fields", "record",  "append", "update", "deleted",    "commit",   "abort",
-    "first",  "last",   "prev",    "next",   "goto",   "position",   "size",
+    "create", "drop",   "open",   "close",   "pack",   "zap",      
+    "name",   "alias",  "version", "status", "schema",   "autocommit", "encoding",
+    "blank",  "fields", "record",  "append", "update",   "deleted",    "commit",   "abort",
+    "first",  "last",   "prev",    "next",   "position", "size",
     "index",  "filter",
     0L
   };
   enum commands {
-    cmCreate, cmOpen,   cmClose,   cmPack,   cmZap,
-    cmName,   cmAlias,  cmVersion, cmStatus, cmSchema, cmAutocommit, cmEncoding,
-    cmBlank,  cmFields, cmRecord,  cmAppend, cmUpdate, cmDeleted,    cmCommit,   cmAbort,
-    cmFirst,  cmLast,   cmPrev,    cmNext,   cmGoto,   cmPosition,   cmSize,
+    cmCreate, cmDrop,   cmOpen,   cmClose,   cmPack,   cmZap,
+    cmName,   cmAlias,  cmVersion, cmStatus, cmSchema,   cmAutocommit, cmEncoding,
+    cmBlank,  cmFields, cmRecord,  cmAppend, cmUpdate,   cmDeleted,    cmCommit,   cmAbort,
+    cmFirst,  cmLast,   cmPrev,    cmNext,   cmPosition, cmSize,
     cmIndex,  cmFilter
   };
   int index, rc;
@@ -58,26 +58,57 @@ int TclDbf::Command (int objc, struct Tcl_Obj * CONST objv[])
 
   case cmCreate:
 
-    if (objc < 4 || objc > 5) {
-      Tcl_WrongNumArgs(interp, 2, objv, "?-overlay? filename schema");
-      return TCL_ERROR;
-    } else {
-      if (objc == 5) {
-        if (strcmp(Tcl_GetString(objv[2]), "-overlay") == 0) {
-          if (Create(objv[3], objv[4], XB_OVERLAY) != TCL_OK) {
-            return TCL_ERROR;
-          }
-        } else {
-          Tcl_AppendResult(interp, "bad option ", Tcl_GetString(objv[4]), NULL);
-          return TCL_ERROR;
-        }
-      } else {  
-        if (Create(objv[2], objv[3], XB_DONTOVERLAY) != TCL_OK) {
-          return TCL_ERROR;
-        }
+    {
+      Tcl_Obj * schema = NULL;
+      Tcl_Obj * filename = NULL;
+      Tcl_Obj * alias = NULL;
+      int overlay = XB_DONTOVERLAY;
+      int share = XB_SINGLE_USER;
+      int i = 2;
+
+      if (i < objc && strcmp(Tcl_GetString(objv[i]), "-overlay") == 0) {
+        overlay = XB_OVERLAY;
+        i++;
+      }
+      if (i < objc && strcmp(Tcl_GetString(objv[i]), "-share") == 0) {
+        share = XB_MULTI_USER;
+        i++;
+      }
+      if (i < objc) {
+        schema = objv[i];
+        i++;
+      }
+      if (i < objc) {
+        filename = objv[i];
+        i++;
+      }
+      if (i < objc) {
+        alias = objv[i];
+        i++;
+      }
+      if (schema == NULL || filename == NULL || i != objc) {
+        Tcl_WrongNumArgs(interp, 2, objv, "?-overlay? ?-share? schema filename ?alias?");
+        return TCL_ERROR;
+      }
+      if (Create(filename, alias, schema, overlay, share) != TCL_OK) {
+        return TCL_ERROR;
+      }
+      if (CheckRC(dbf->xbFflush()) != TCL_OK) {
+        return TCL_ERROR; 
       }
     }
     Tcl_AppendResult(interp, (const char *)dbf->GetFqFileName(), NULL);
+
+    break;
+
+  case cmDrop:
+
+    if (objc != 2) {
+      Tcl_WrongNumArgs(interp, 2, objv, NULL);
+      return TCL_ERROR;
+    } else if (CheckRC(dbf->DeleteTable()) != TCL_OK) {
+      return TCL_ERROR;
+    }
 
     break;
 
@@ -88,18 +119,17 @@ int TclDbf::Command (int objc, struct Tcl_Obj * CONST objv[])
       return TCL_ERROR;
     } else {
       int rc;
-      char * xdbname;
-      Tcl_DString s;
+      char * filename;
+        Tcl_DString s;
     
-      xdbname = Tcl_GetString(objv[2]);
-      xdbname = Tcl_TranslateFileName(interp, xdbname, &s);
-      if (xdbname == NULL) {
+      filename = Tcl_TranslateFileName(interp, Tcl_GetString(objv[2]), &s);
+      if (filename == NULL) {
         return TCL_ERROR;
       }
     
       rc = dbf->Close();
       if (rc == XB_NO_ERROR) {
-        rc = dbf->Open(xdbname, (objc == 4) ? Tcl_GetString(objv[3]) : Tcl_GetString(objv[2]));
+        rc = dbf->Open(filename, (objc == 4) ? Tcl_GetString(objv[3]) : Tcl_GetString(objv[2]));
       }
 
       Tcl_DStringFree(&s);
@@ -224,7 +254,7 @@ int TclDbf::Command (int objc, struct Tcl_Obj * CONST objv[])
   case cmAutocommit:
     
     if (objc > 3) {
-      Tcl_WrongNumArgs(interp, 2, objv, "?boolean?");
+      Tcl_WrongNumArgs(interp, 2, objv, "?enabled?");
       return TCL_ERROR;
     } else if (objc == 3) {
       int autocommit;
@@ -345,7 +375,7 @@ int TclDbf::Command (int objc, struct Tcl_Obj * CONST objv[])
   case cmDeleted:
     
     if (objc < 2 || objc > 3) {
-      Tcl_WrongNumArgs(interp, 2, objv, "?boolean?");
+      Tcl_WrongNumArgs(interp, 2, objv, "?deleted?");
       return TCL_ERROR;
     } else if (objc == 3) {
       int deleted;
@@ -366,7 +396,6 @@ int TclDbf::Command (int objc, struct Tcl_Obj * CONST objv[])
     
     break;
 
-  case cmPosition:
   case cmFirst:
   case cmLast:
   case cmPrev:
@@ -393,12 +422,12 @@ int TclDbf::Command (int objc, struct Tcl_Obj * CONST objv[])
 
     break;
 
-  case cmGoto:
+    case cmPosition:
 
-    if (objc != 3) {
-      Tcl_WrongNumArgs(interp, 2, objv, "position");
+    if (objc > 3) {
+      Tcl_WrongNumArgs(interp, 2, objv, "?position?");
       return TCL_ERROR;
-    } else {
+    } else if (objc == 3) {
       long position;
       if (Tcl_GetLongFromObj(interp, objv[2], &position)) {
         return TCL_ERROR;
@@ -470,7 +499,7 @@ int TclDbf::Command (int objc, struct Tcl_Obj * CONST objv[])
   return TCL_OK;
 }
 
-int TclDbf::Create (Tcl_Obj * dbname, Tcl_Obj * schema, int overlay)
+int TclDbf::Create (Tcl_Obj * filename, Tcl_Obj * alias, Tcl_Obj * schema, int overlay, int share)
 {
   int fieldc;
 
@@ -538,12 +567,12 @@ int TclDbf::Create (Tcl_Obj * dbname, Tcl_Obj * schema, int overlay)
         Tcl_AppendObjToObj(Tcl_GetObjResult(interp), Tcl_NewIntObj(i));
         return TCL_ERROR;
       }
-      strncpy(xschema[i].cFieldName, DecodeTclString(fname),MaxFieldNameLength);
+      strncpy(xschema[i].cFieldName, DecodeTclString(fname), MaxFieldNameLength);
       xschema[i].cType = ftype[0];
       xschema[i].iFieldLen = (unsigned char)flen;
       xschema[i].iNoOfDecs = (unsigned char)fdec;
-      DEBUGLOG("CreateDatabase "     << \
-               Tcl_GetString(dbname) << " #" << i << " = " << \
+      DEBUGLOG("CreateTable "     << \
+               Tcl_GetString(filename) << " #" << i << " = " << \
                (xschema[i].cFieldName)        << ","  << \
                (xschema[i].cType)             << ","  << \
                (int)(xschema[i].iFieldLen)    << ","  << \
@@ -552,22 +581,18 @@ int TclDbf::Create (Tcl_Obj * dbname, Tcl_Obj * schema, int overlay)
     memset(&(xschema[fieldc]), 0, sizeof(xbSchema));
 
     {
-      int rc;
-      char * xdbname;
       Tcl_DString s;
+      char * xfilename = Tcl_TranslateFileName(interp, Tcl_GetString(filename), &s);
+      char * xalias = alias ? Tcl_GetString(alias) : NULL;
     
-      xdbname = Tcl_GetString(dbname);
-      xdbname = Tcl_TranslateFileName(interp, xdbname, &s);
-      if (xdbname == NULL) {
+      if (xfilename == NULL) {
         Tcl_Free((char *)xschema);
         return TCL_ERROR;
       }
-    
-      rc = dbf->Close();
+
+      int rc = dbf->Close();
       if (rc == XB_NO_ERROR) {
-        // FIXME: sAlias: fullfilename or justfilename ?
-        // FIXME: iShareMode: XB_SINGLE_USER or XB_MULTI_USER ?
-        rc = dbf->CreateTable(xdbname, xdbname, xschema, overlay, XB_SINGLE_USER);
+        rc = dbf->CreateTable(xfilename, xalias, xschema, overlay, share);
       }
 
       Tcl_DStringFree(&s);

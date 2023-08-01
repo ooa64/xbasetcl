@@ -1,0 +1,156 @@
+package require tcltest
+package require xbasetcl
+
+namespace import tcltest::*
+
+set commands {create drop open close pack zap name alias version status schema autocommit encoding blank fields record append update deleted commit abort first last prev next position size index filter}
+
+set schema {
+    {F1 C 10 0}
+    {F2 L 1 0}
+    {F3 N 10 0}
+    {F4 D 8 0}
+    {F5 F 10 2}
+}
+
+proc test_path {args} {file nativename [file join [testsDirectory] {*}$args]}
+proc testd_setup {} {xbase dbf testd}
+proc testd_setup3 {} {xbase dbf -dbf3 testd}
+proc testd_setup4 {} {xbase dbf -dbf4 testd}
+proc testd_cleanup {} {testd close; rename testd {}; file delete [test_path tmp testd.dbf]}
+
+test dbf-1.0 "create/destroy dbf object" {
+    list [xbase dbf testd] [testd close] [rename testd {}]
+} {testd {} {}}
+
+test dbf-1.1 "dbf commands list" -setup testd_setup -body {
+    testd foo
+} -cleanup testd_cleanup -returnCodes 1 -result \
+    "bad command \"foo\": must be [join [lrange $commands 0 end-1] ", "], or [lindex $commands end]"
+
+foreach v {3 4} {
+    foreach {o c r} [list \
+        create      1 "wrong # args: should be \"testd create ?-overlay? ?-share? schema filename ?alias?\"" \
+        drop        1 "DBF File Not Open" \
+        open        1 "wrong # args: should be \"testd open filename ?alias?\"" \
+        close       0 "" \
+        pack        1 "DBF File Not Open" \
+        zap         1 "DBF File Not Open" \
+        name        0 .[file nativename /] \
+        alias       0 "" \
+        version     0 $v \
+        status      0 "closed" \
+        schema      0 "" \
+        autocommit  0 "1" \
+        encoding    0 [encoding system] \
+        blank       1 "Database not open" \
+        fields      0 "" \
+        record      0 "" \
+        append      1 "Database not open" \
+        update      1 "Database not open" \
+        deleted     0 "0" \
+        commit      0 "" \
+        abort       0 "" \
+        first       1 "Empty Table or Index" \
+        last        1 "Empty Table or Index" \
+        prev        1 "Empty Table or Index" \
+        next        1 "Empty Table or Index" \
+        position    0 "0" \
+        size        1 "Database not open" \
+        index       1 "wrong # args: should be \"testd index ?-ndx|-mdx? name\"" \
+        filter      1 "wrong # args: should be \"testd filter name expression\"" \
+    ] {
+
+        test dbf-1.2.$o "operation on unopened dbf" -setup testd_setup$v -body {
+            testd {*}$o
+        } -cleanup testd_cleanup -returnCodes $c -result $r
+        unset o c r
+
+    }
+    unset v
+}
+
+foreach v {3 4} {
+
+    test dbf-1.3.v$v "dbf autocommit" -setup testd_setup$v -body {
+        list [testd autocommit 0] [testd autocommit] [testd autocommit 1] [testd autocommit]
+    } -cleanup testd_cleanup -result {0 0 1 1}
+
+    test dbf-1.4.v$v "dbf encoding" -setup testd_setup$v -body {
+        list [testd encoding "ascii"] [testd encoding] [testd encoding [encoding system]] [testd encoding]
+    } -cleanup testd_cleanup -result [list "ascii" "ascii" [encoding system] [encoding system]]
+
+    unset v
+}
+
+foreach v {3 4} {
+    foreach {n s r} {
+        1  {} "empty schema"
+        2  {{}} "invalid schema, field #0"
+        3  {{?}} "invalid schema, field #0"
+        4  {{F}} "invalid schema, field #0"
+        5  {{F N 10}} "invalid schema, field #0"
+        6  {{F N ? 0}} "invalid flen, field #0"
+        7  {{F N 256 0}} "invalid flen, field #0"
+        8  {{F N 10 ?}} "invalid fdec, field #0"
+        9  {{F N 10 -1}} "invalid fdec, field #0"
+        10 {{F N 10 256}} "invalid fdec, field #0"
+        11 {{F N 255 0}} "Invalid Field Length"
+        12 {{F N 10 255}} "Invalid Field Length"
+        13 {{F ? 10 0}} "Unknown Field Type"
+    } {
+        test dbf-2.1.v$v.$n "create dbf with invalid schema" -setup testd_setup$v -body {
+            testd create $s testd testd
+        } -cleanup testd_cleanup -returnCodes 1 -result $r
+        unset n s r
+    }
+    unset v
+}
+
+foreach v {3 4} {
+
+    test dbf-2.2.v$v "create dbf" -setup testd_setup$v -body {
+        list \
+            [testd create {{F N 10 0}} [test_path tmp testd.dbf] testd] \
+            [testd commit] \
+            [file size [test_path tmp testd.dbf]] \
+    } -cleanup "testd_cleanup" -result [list [test_path tmp testd.dbf] {} 65]
+
+    test dbf-2.3.v$v "created dbf status" -setup {
+        testd_setup$v
+        testd create {{F N 10 0}} [test_path tmp testd.dbf] testd
+    } -body {
+        list \
+            [testd name] \
+            [testd alias] \
+            [testd schema] \
+            [testd status] \
+            [testd position] \
+            [testd size]
+    } -cleanup "testd_cleanup" -result [list [test_path tmp testd.dbf] testd {{F N 10 0}} open 0 0]
+
+    test dbf-2.4.v$v "drop dbf" -setup {
+        testd_setup$v
+        testd create {{F N 10 0}} [test_path tmp testd.dbf] testd
+    } -body {
+        list \
+            [testd drop] \
+            [testd status] \
+            [file exists [test_path tmp testd.dbf]]
+    } -cleanup "testd_cleanup" -result [list open {} closed 0]
+
+    test dbf-2.5.v$v "drop dbf" -setup {
+        testd_setup$v
+        testd create {{F N 10 0}} [test_path tmp testd.dbf] testd
+    } -body {
+        list \
+            [lmap i {10 20 30} {testd append [list $i]}] \
+            [testd size] \
+            [testd position] \
+            [testd record]
+    } -cleanup "testd_cleanup" -result {{10 20 30} 3 3 30}
+
+    unset v
+}
+
+cleanupTests
