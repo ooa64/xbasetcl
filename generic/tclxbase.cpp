@@ -22,10 +22,10 @@ void TclXbase::Cleanup () {
 int TclXbase::Command (int objc, struct Tcl_Obj * CONST objv[])
 {
   static CONST char *commands[] = {
-    "version", "dateformat", "encoding", "list", "dbf", "open", 0L
+    "version", "dateformat", "encoding", "log", "list", "dbf", "open", 0L
   };
   enum commands {
-    cmVersion, cmDateformat, cmEncoding, cmList, cmDbf, cmOpen
+    cmVersion, cmDateformat, cmEncoding, cmLog, cmList, cmDbf, cmOpen
   };
   int index;
 
@@ -78,6 +78,12 @@ int TclXbase::Command (int objc, struct Tcl_Obj * CONST objv[])
       }
     }
     Tcl_AppendResult(interp, Tcl_GetEncodingName(encoding), NULL);
+
+    break;
+
+  case cmLog:
+
+    return Log(objc, objv);
 
     break;
     
@@ -149,6 +155,128 @@ int TclXbase::Command (int objc, struct Tcl_Obj * CONST objv[])
     }
 
     break;
+
+  } // switch index
+
+  return TCL_OK;
+}
+
+int TclXbase::Log (int objc, struct Tcl_Obj * CONST objv[])
+{
+  static CONST char *commands[] = {
+    "directory", "name", "size", "enabled", "string", "bytes", "flush", 0L
+  };
+  enum commands {
+    cmDirectory, cmName, cmSize, cmEnabled, cmString, cmBytes, cmFlush
+  };
+  int index;
+
+  if (objc < 3) {
+    Tcl_WrongNumArgs(interp, 1, objv, "command");
+    return TCL_ERROR;
+  }
+  
+  if (Tcl_GetIndexFromObj(interp, objv[2], 
+                          (CONST char **)commands, "command", 0, &index) != TCL_OK) {
+    return TCL_ERROR;
+  }
+
+  switch ((enum commands)(index)) {
+
+    case cmDirectory:
+      if (objc > 4) {
+        Tcl_WrongNumArgs(interp, 3, objv, "?directory?");
+        return TCL_ERROR;
+      }
+      if (objc == 4) {
+        Tcl_DString s;
+        char * dirname = Tcl_TranslateFileName(interp, Tcl_GetString(objv[3]), &s);
+        if (dirname == NULL) {
+          return TCL_ERROR;
+        }
+        xbase->SetLogDirectory(dirname);
+        Tcl_DStringFree(&s);
+      }
+      Tcl_AppendResult(interp, xbase->GetLogDirectory().Str(), NULL);
+      break;
+
+    case cmName:
+      if (objc > 4) {
+        Tcl_WrongNumArgs(interp, 3, objv, "?filename?");
+        return TCL_ERROR;
+      }
+      if (objc == 4) {
+        Tcl_DString s;
+        char * filename = Tcl_TranslateFileName(interp, Tcl_GetString(objv[3]), &s);
+        if (filename == NULL) {
+          return TCL_ERROR;
+        }
+        xbase->SetLogFileName(filename);
+        Tcl_DStringFree(&s);
+      }
+      Tcl_AppendResult(interp, xbase->GetLogFileName().Str(), NULL);
+      break;
+
+    case cmSize:
+      if (objc > 4) {
+        Tcl_WrongNumArgs(interp, 3, objv, "?size?");
+        return TCL_ERROR;
+      }
+      if (objc == 4) {
+        long size;
+        if (Tcl_GetLongFromObj(interp, objv[3], &size)) {
+          return TCL_ERROR;
+        }
+        xbase->SetLogSize(size);
+      }
+      Tcl_SetObjResult(interp, Tcl_NewLongObj(xbase->GetLogSize()));
+      break;
+
+    case cmEnabled:
+      if (objc > 4) {
+        Tcl_WrongNumArgs(interp, 3, objv, "?enabled?");
+        return TCL_ERROR;
+      }
+      if (objc == 4) {
+        int enabled;
+        if (Tcl_GetBooleanFromObj(interp, objv[3], &enabled)) {
+          return TCL_ERROR;
+        }
+        if (enabled)
+          xbase->EnableMsgLogging();
+        else
+          xbase->DisableMsgLogging();
+      }
+      Tcl_SetObjResult(interp, Tcl_NewLongObj(xbase->GetLogStatus()));
+      break;
+
+    case cmString:
+      if (objc != 4) {
+        Tcl_WrongNumArgs(interp, 3, objv, "message");
+        return TCL_ERROR;
+      }
+      xbase->WriteLogMessage(Tcl_GetString(objv[3]));
+      break;
+
+    case cmBytes:
+      if (objc != 4) {
+        Tcl_WrongNumArgs(interp, 3, objv, "bytes");
+        return TCL_ERROR;
+      }
+      {
+        int length;
+        const unsigned char * bytes = Tcl_GetByteArrayFromObj(objv[3], &length);
+        xbase->WriteLogBytes((unsigned)length, (const char *)bytes);
+      }
+      break;
+
+    case cmFlush:
+      if (objc != 3) {
+        Tcl_WrongNumArgs(interp, 3, objv, NULL);
+        return TCL_ERROR;
+      }
+      xbase->FlushLog();
+      break;
 
   } // switch index
 

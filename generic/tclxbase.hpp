@@ -50,6 +50,8 @@ private:
   virtual void Cleanup();
   virtual int Command (int objc, struct Tcl_Obj * CONST objv[]);
 
+  int Log(int objc, struct Tcl_Obj * CONST objv[]);
+
 };
 
 #endif
