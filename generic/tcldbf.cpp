@@ -96,8 +96,8 @@ int TclDbf::Command (int objc, struct Tcl_Obj * CONST objv[])
       if (CheckRC(dbf->xbFflush()) != TCL_OK) {
         return TCL_ERROR; 
       }
+      Tcl_AppendResult(interp, (const char *)dbf->GetFqFileName(), NULL);
     }
-    Tcl_AppendResult(interp, (const char *)dbf->GetFqFileName(), NULL);
 
     break;
 
@@ -137,8 +137,8 @@ int TclDbf::Command (int objc, struct Tcl_Obj * CONST objv[])
       if (CheckRC(rc) != TCL_OK) {
         return TCL_ERROR;
       }
+      Tcl_AppendResult(interp, (const char *)dbf->GetFqFileName(), NULL);
     }
-    Tcl_AppendResult(interp, (const char *)dbf->GetFqFileName(), NULL);
 
     break;
 
@@ -214,11 +214,12 @@ int TclDbf::Command (int objc, struct Tcl_Obj * CONST objv[])
       Tcl_WrongNumArgs(interp, 2, objv, NULL);
       return TCL_ERROR;
     } else {
-      switch (dbf->GetDbfStatus()) {
+      int status = dbf->GetDbfStatus();
+      switch (status) {
         case XB_CLOSED:  Tcl_AppendResult(interp, "closed", NULL); break;
         case XB_OPEN:    Tcl_AppendResult(interp, "open", NULL); break;
         case XB_UPDATED: Tcl_AppendResult(interp, "updated", NULL); break;
-        default:         Tcl_SetObjResult(interp, Tcl_NewIntObj(dbf->GetDbfStatus())); break;
+        default:         Tcl_SetObjResult(interp, Tcl_NewIntObj(status)); break;
       }
     }
     
@@ -256,16 +257,18 @@ int TclDbf::Command (int objc, struct Tcl_Obj * CONST objv[])
     if (objc > 3) {
       Tcl_WrongNumArgs(interp, 2, objv, "?enabled?");
       return TCL_ERROR;
-    } else if (objc == 3) {
-      int autocommit;
-      if (Tcl_GetBooleanFromObj(interp, objv[2], &autocommit)) {
-        return TCL_ERROR;
+    } else {
+      if (objc == 3) {
+        int autocommit;
+        if (Tcl_GetBooleanFromObj(interp, objv[2], &autocommit)) {
+          return TCL_ERROR;
+        }
+        if (CheckRC(dbf->SetAutoCommit(autocommit)) != TCL_OK) {
+          return TCL_ERROR;
+        }
       }
-      if (CheckRC(dbf->SetAutoCommit(autocommit)) != TCL_OK) {
-        return TCL_ERROR;
-      }
+      Tcl_SetObjResult(interp, Tcl_NewIntObj(dbf->GetAutoCommit()));
     }
-    Tcl_SetObjResult(interp, Tcl_NewIntObj(dbf->GetAutoCommit()));
     
     break;
 
@@ -316,8 +319,7 @@ int TclDbf::Command (int objc, struct Tcl_Obj * CONST objv[])
              Tcl_NewStringObj(EncodeTclString(name.Str()), -1));
           }
       }
-    } else if (Fields(Tcl_GetObjResult(interp), \
-                      objv[2], (objc == 4) ? objv[3] : NULL) != TCL_OK) {
+    } else if (Fields(Tcl_GetObjResult(interp), objv[2], (objc == 4) ? objv[3] : NULL) != TCL_OK) {
       return TCL_ERROR;
     }
 
@@ -377,22 +379,24 @@ int TclDbf::Command (int objc, struct Tcl_Obj * CONST objv[])
     if (objc < 2 || objc > 3) {
       Tcl_WrongNumArgs(interp, 2, objv, "?deleted?");
       return TCL_ERROR;
-    } else if (objc == 3) {
-      int deleted;
-      if (Tcl_GetBooleanFromObj(interp, objv[2], &deleted)) {
-        return TCL_ERROR;
-      }
-      if (deleted) {
-        if (CheckRC(dbf->DeleteRecord()) != TCL_OK) {
+    } else {
+      if (objc == 3) {
+        int deleted;
+        if (Tcl_GetBooleanFromObj(interp, objv[2], &deleted)) {
           return TCL_ERROR;
         }
-      } else {
-        if (CheckRC(dbf->UndeleteRecord()) != TCL_OK) {
-          return TCL_ERROR;
+        if (deleted) {
+          if (CheckRC(dbf->DeleteRecord()) != TCL_OK) {
+            return TCL_ERROR;
+          }
+        } else {
+          if (CheckRC(dbf->UndeleteRecord()) != TCL_OK) {
+            return TCL_ERROR;
+          }
         }
       }
+      Tcl_SetObjResult(interp, Tcl_NewIntObj(dbf->RecordDeleted()));
     }
-    Tcl_SetObjResult(interp, Tcl_NewIntObj(dbf->RecordDeleted()));
     
     break;
 
@@ -401,23 +405,31 @@ int TclDbf::Command (int objc, struct Tcl_Obj * CONST objv[])
   case cmPrev:
   case cmNext:
 
-    if (objc != 2) {
-      Tcl_WrongNumArgs(interp, 2, objv, NULL);
-      return TCL_ERROR;
-    }
-    switch ((enum commands)index) {
-    case cmFirst: rc = dbf->GetFirstRecord(); break;
-    case cmLast: rc = dbf->GetLastRecord(); break;
-    case cmPrev: rc = dbf->GetPrevRecord(); break;
-    case cmNext: rc = dbf->GetNextRecord(); break;
-    default: rc = XB_NO_ERROR;
-    }
-    if (rc == XB_EOF || rc == XB_BOF) {
-      Tcl_SetObjResult(interp, Tcl_NewIntObj(0));
-    } else if (CheckRC(rc) != TCL_OK) {
+    if (objc < 2 || objc > 3) {
+      Tcl_WrongNumArgs(interp, 2, objv, "?-all|-deleted?");
       return TCL_ERROR;
     } else {
-      Tcl_SetObjResult(interp, Tcl_NewLongObj(dbf->GetCurRecNo()));
+      int option = XB_ACTIVE_RECS;
+      if (objc == 3) {
+        if (strcmp(Tcl_GetString(objv[2]), "-all") == 0)
+          option = XB_ALL_RECS;
+        else if (strcmp(Tcl_GetString(objv[2]), "-deleted") == 0)
+          option = XB_DELETED_RECS;
+      }
+      switch ((enum commands)index) {
+        case cmFirst: rc = dbf->GetFirstRecord(option); break;
+        case cmLast: rc = dbf->GetLastRecord(option); break;
+        case cmPrev: rc = dbf->GetPrevRecord(option); break;
+        case cmNext: rc = dbf->GetNextRecord(option); break;
+        default: rc = XB_NO_ERROR;
+      }
+      if (rc == XB_EOF || rc == XB_BOF || rc == XB_EMPTY) {
+        Tcl_SetObjResult(interp, Tcl_NewIntObj(0));
+      } else if (CheckRC(rc) != TCL_OK) {
+        return TCL_ERROR;
+      } else {
+        Tcl_SetObjResult(interp, Tcl_NewLongObj(dbf->GetCurRecNo()));
+      }
     }
 
     break;
@@ -427,17 +439,18 @@ int TclDbf::Command (int objc, struct Tcl_Obj * CONST objv[])
     if (objc > 3) {
       Tcl_WrongNumArgs(interp, 2, objv, "?position?");
       return TCL_ERROR;
-    } else if (objc == 3) {
-      long position;
-      if (Tcl_GetLongFromObj(interp, objv[2], &position)) {
-        return TCL_ERROR;
+    } else {
+      if (objc == 3) {
+        long position;
+        if (Tcl_GetLongFromObj(interp, objv[2], &position)) {
+          return TCL_ERROR;
+        }
+        if (CheckRC(dbf->GetRecord(position)) != TCL_OK) {
+          return TCL_ERROR;
+        }
       }
-      if (CheckRC(dbf->GetRecord(position)) != TCL_OK) {
-        return TCL_ERROR;
-      }
+      Tcl_SetObjResult(interp, Tcl_NewLongObj(dbf->GetCurRecNo()));
     }
-
-    Tcl_SetObjResult(interp, Tcl_NewLongObj(dbf->GetCurRecNo()));
 
     break;
 
@@ -461,20 +474,21 @@ int TclDbf::Command (int objc, struct Tcl_Obj * CONST objv[])
     if (objc < 3 || objc > 4) {
       Tcl_WrongNumArgs(interp, 2, objv, "?-ndx|-mdx? name");
       return TCL_ERROR;
-    } else if (objc == 4) {
-      if (strcmp(Tcl_GetString(objv[2]), "-ndx") == 0) {
-        (void) new TclNdx(interp, Tcl_GetString(objv[3]), this);
-      } else if (strcmp(Tcl_GetString(objv[2]), "-mdx") == 0) {
-        (void) new TclMdx(interp, Tcl_GetString(objv[3]), this);
-      } else {
-        Tcl_AppendResult(interp, "bad option ", Tcl_GetString(objv[2]), NULL);
-        return TCL_ERROR;
-      }
     } else {
-      (void) new TclNdx(interp, Tcl_GetString(objv[2]), this);
+      if (objc == 4) {
+        if (strcmp(Tcl_GetString(objv[2]), "-ndx") == 0) {
+          (void) new TclNdx(interp, Tcl_GetString(objv[3]), this);
+        } else if (strcmp(Tcl_GetString(objv[2]), "-mdx") == 0) {
+          (void) new TclMdx(interp, Tcl_GetString(objv[3]), this);
+        } else {
+          Tcl_AppendResult(interp, "bad option ", Tcl_GetString(objv[2]), NULL);
+          return TCL_ERROR;
+        }
+      } else {
+        (void) new TclNdx(interp, Tcl_GetString(objv[2]), this);
+      }
+      Tcl_SetObjResult(interp, objv[objc - 1]);
     }
-
-    Tcl_SetObjResult(interp, objv[objc - 1]);
     
     break;
     
@@ -484,9 +498,7 @@ int TclDbf::Command (int objc, struct Tcl_Obj * CONST objv[])
       Tcl_WrongNumArgs(interp, 2, objv, "name expression");
       return TCL_ERROR;
     }
-    (void) new TclFilter(interp, 
-                         Tcl_GetString(objv[2]),
-                         Tcl_GetString(objv[3]), this);
+    (void) new TclFilter(interp, Tcl_GetString(objv[2]), Tcl_GetString(objv[3]), this);
     Tcl_SetObjResult(interp, objv[2]);
 
     break;

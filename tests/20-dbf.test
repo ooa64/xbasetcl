@@ -5,19 +5,49 @@ namespace import tcltest::*
 
 set commands {create drop open close pack zap name alias version status schema autocommit encoding blank fields record append update deleted commit abort first last prev next position size index filter}
 
-set schema {
+set schema3 [lrange {
+    {F1 C 10 0}
+    {F2 L 1 0}
+    {F3 N 10 0}
+    {F4 D 8 0}
+    {F5 N 10 2}
+} 0 end]
+
+set schema4 [lrange {
     {F1 C 10 0}
     {F2 L 1 0}
     {F3 N 10 0}
     {F4 D 8 0}
     {F5 F 10 2}
-}
+} 0 end]
+
+set records [lrange {
+    {1st T 11 20010101 11.11}
+    {2nd F 22 20020202 22.22}
+    {3rd ? 33 20030303 33.33}
+} 0 end]
+
+set schema_memo [lrange {
+    {F1 C 10 0}
+    {F2 M 10 0}
+} 0 end]
+
+set records_memo [lrange {
+    {1st {}}
+    {2nd {This is a second record}}
+    {3rd {}}
+    {4th {This is a last record}}
+} 0 end]
+
+set schema_intl [list [list \u0410\u0411 C 2 0]]
+set record_intl [list [list \u0412\u0413]]
+set encoding_intl "cp866"
 
 proc test_path {args} {file nativename [file join [testsDirectory] {*}$args]}
 proc testd_setup {} {xbase dbf testd}
 proc testd_setup3 {} {xbase dbf -dbf3 testd}
 proc testd_setup4 {} {xbase dbf -dbf4 testd}
-proc testd_cleanup {} {testd close; rename testd {}; file delete [test_path tmp testd.dbf]}
+proc testd_cleanup {} {testd close; rename testd {}; file delete [test_path tmp testd.dbf] [test_path tmp testd.dbt]}
 
 set xbaseLogEnabled [xbase log enabled]
 set xbaseLogDirectory [xbase log directory]
@@ -60,10 +90,10 @@ foreach v {3 4} {
         deleted     0 "0" \
         commit      0 "" \
         abort       0 "" \
-        first       1 "Empty Table or Index" \
-        last        1 "Empty Table or Index" \
-        prev        1 "Empty Table or Index" \
-        next        1 "Empty Table or Index" \
+        first       0 "0" \
+        last        0 "0" \
+        prev        0 "0" \
+        next        0 "0" \
         position    0 "0" \
         size        1 "Database not open" \
         index       1 "wrong # args: should be \"testd index ?-ndx|-mdx? name\"" \
@@ -71,8 +101,8 @@ foreach v {3 4} {
     ] {
 
         test dbf-1.2.$o "operation on unopened dbf" -setup testd_setup$v -body {
-            testd {*}$o
-        } -cleanup testd_cleanup -returnCodes $c -result $r
+            list [catch {testd {*}$o} result] $result
+        } -cleanup testd_cleanup -result [list $c $r]
         unset o c r
 
     }
@@ -108,24 +138,52 @@ foreach v {3 4} {
         12 {{F N 10 255}} "Invalid Field Length"
         13 {{F ? 10 0}} "Unknown Field Type"
     } {
-        test dbf-2.1.v$v.$n "create dbf with invalid schema" -setup testd_setup$v -body {
+        test dbf-2.1.1.v$v.$n "create dbf with invalid schema" -setup testd_setup$v -body {
             testd create $s testd testd
         } -cleanup testd_cleanup -returnCodes 1 -result $r
         unset n s r
     }
+
+    foreach t {C N D L} {
+        test dbf-2.1.2.v$v-$t "check dbf3 field $t" -setup testd_setup$v -body {
+            testd create [list [list F $t 0 0]] [test_path tmp testd.dbf] testd
+        } -cleanup testd_cleanup -result [test_path tmp testd.dbf]
+    }
+
+    foreach t {@ I + 0 G} {
+        test dbf-2.1.3.v$v-$t "check other dbfx field $t" -setup {
+            testd_setup$v
+        } -body {
+            list [catch {
+                testd create [list [list F $t 0 0]] [test_path tmp testd.dbf] testd
+            } result] $result
+        } -cleanup testd_cleanup -result {1 {Unknown Field Type}}
+    }
+
     unset v
 }
 
+test dbf-2.1.4 "check dbf4 fields on dbf3 engine" -setup testd_setup3 -body {
+    testd create [list [list F F 0 0]] [test_path tmp testd.dbf] testd
+} -cleanup testd_cleanup -returnCodes 1 -result {Unknown Field Type}
+
+test dbf-2.1.5 "check dbf4 fields" -setup testd_setup4 -body {
+    list [catch {
+        testd create [list [list F F 0 0]] [test_path tmp testd.dbf] testd
+    } result] $result
+} -cleanup testd_cleanup -result [list 0 [test_path tmp testd.dbf]]
+
+
 foreach v {3 4} {
 
-    test dbf-2.2.v$v "create dbf" -setup testd_setup$v -body {
+    test dbf-2.2.1.v$v "create dbf" -setup testd_setup$v -body {
         list \
             [testd create {{F N 10 0}} [test_path tmp testd.dbf] testd] \
-            [testd commit] \
+            [testd close] \
             [file size [test_path tmp testd.dbf]] \
     } -cleanup testd_cleanup -result [list [test_path tmp testd.dbf] {} 65]
 
-    test dbf-2.3.v$v "created dbf status" -setup {
+    test dbf-2.2.2.v$v "created dbf status" -setup {
         testd_setup$v
         testd create {{F N 10 0}} [test_path tmp testd.dbf] testd
     } -body {
@@ -135,12 +193,37 @@ foreach v {3 4} {
             [testd schema] \
             [testd status] \
             [testd position] \
-            [testd first] \
-            [testd last] \
             [testd size]
-    } -cleanup testd_cleanup -result [list [test_path tmp testd.dbf] testd {{F N 10 0}} open 0 0 0 0]
+    } -cleanup testd_cleanup -result [list [test_path tmp testd.dbf] testd {{F N 10 0}} open 0 0]
 
-    test dbf-2.4.v$v "drop dbf" -setup {
+    test dbf-2.2.3.v$v "replace dbf" -setup {
+        testd_setup$v
+        testd create {{F N 10 0}} [test_path tmp testd.dbf] testd
+        testd close
+    } -body {
+        list \
+            [catch {testd create {{F N 10 0}} [test_path tmp testd.dbf] testd} result] $result \
+            [catch {testd create -overlay {{F N 10 0}} [test_path tmp testd.dbf] testd} result] $result
+    } -cleanup testd_cleanup -result [list 1 {File Already Exists} 0 [test_path tmp testd.dbf]]
+
+    test dbf-2.2.4.v$v "shared dbf ???" -constraints "invalidIdeaAboutShareMode" -setup {
+        testd_setup$v
+        xbase dbf test2
+    } -body {
+        list \
+            [catch {testd create {{F N 10 0}} [test_path tmp testd.dbf] testd} result] $result \
+            [catch {test2 open [test_path tmp testd.dbf] test2} result] $result \
+            [testd close] \
+            [catch {testd create -overlay -share {{F N 10 0}} [test_path tmp testd.dbf] testd} result] $result \
+            [catch {test2 open [test_path tmp testd.dbf] test2} result] $result \
+            [catch {test2 close}]
+    } -cleanup {
+        testd_cleanup
+        test2 close
+        rename test2 {}
+    } -result [list 0 [test_path tmp testd.dbf] 1 {} 0 [test_path tmp testd.dbf] 0 [test_path tmp testd.dbf] 0]
+
+    test dbf-2.2.5.v$v "drop dbf" -setup {
         testd_setup$v
         testd create {{F N 10 0}} [test_path tmp testd.dbf] testd
     } -body {
@@ -156,16 +239,16 @@ foreach v {3 4} {
 foreach v {3 4} {
     set f [file nativename [file join [testsDirectory] fixtures dbase_03.dbf]]
 
-    test dbf-2.6.0.0.v$v "open dbf3" -setup testd_setup$v -body {
+    test dbf-2.3.0.0.v$v "open dbf3" -setup testd_setup$v -body {
         testd open $f testd
     } -cleanup testd_cleanup -result $f
 
-    test dbf-2.6.0.1.$v "open dbf3 and check open list" -setup testd_setup$v -body {
+    test dbf-2.3.0.1.$v "open dbf3 and check open list" -setup testd_setup$v -body {
         testd open $f testd
         xbase list
     } -cleanup testd_cleanup -result [list $f]
 
-    test dbf-2.6.0.2.v$v "open/close dbf3 and check open list" -setup testd_setup3 -body {
+    test dbf-2.3.0.2.v$v "open/close dbf3 and check open list" -setup testd_setup3 -body {
         testd open $f testd
         testd close
         xbase list
@@ -173,12 +256,12 @@ foreach v {3 4} {
 
     set f [file nativename [file join [testsDirectory] fixtures dbase_8b.dbf]]
 
-    test dbf-2.6.0.3.v$v "open dbf4 and check open list" -setup testd_setup$v -body {
+    test dbf-2.3.0.3.v$v "open dbf4 and check open list" -setup testd_setup$v -body {
         testd open $f testd
         xbase list
     } -cleanup testd_cleanup -result [list $f]
 
-    test dbf-2.6.0.4.v$v "open/close dbf4 and check open list" -setup testd_setup3 -body {
+    test dbf-2.3.0.4.v$v "open/close dbf4 and check open list" -setup testd_setup3 -body {
         testd open $f testd
         testd close
         xbase list
@@ -186,7 +269,7 @@ foreach v {3 4} {
 
     set f [file nativename [file join [testsDirectory] fixtures cp1251.dbf]]
 
-    test dbf-2.6.0.9.$v "open unsupported file" -constraints brokenOpenUnsupported -setup testd_setup$v -body {
+    test dbf-2.3.0.9.$v "open unsupported file" -constraints brokenOpenUnsupported -setup testd_setup$v -body {
         list [catch {testd open $f testd} result] $result [xbase list] [testd close] [xbase list]
     } -cleanup testd_cleanup -result [list 1 {Not an Xbase type database} {} {} {}]
 
@@ -195,7 +278,7 @@ foreach v {3 4} {
 
 foreach v {3 4} {
 
-    test dbf-2.7.1.v$v "simple append" -setup {
+    test dbf-2.4.1.v$v "simple append" -setup {
         testd_setup$v
         testd create {{F N 10 0}} [test_path tmp testd.dbf] testd
     } -body {
@@ -213,7 +296,7 @@ foreach v {3 4} {
             [file size [test_path tmp testd.dbf]]
     } -cleanup testd_cleanup -result [list {} 65 [test_path tmp testd.dbf] 0 0 {10 20 30} 3 3 30 {} 99]
 
-    test dbf-2.7.2.v$v "set position" -setup {
+    test dbf-2.4.2.v$v "set position" -setup {
         testd_setup$v
         testd create {{F N 10 0}} [test_path tmp testd.dbf] testd
         lmap i {10 20 30} {testd append [list $i]}
@@ -230,17 +313,27 @@ foreach v {3 4} {
             [testd next]
     } -cleanup testd_cleanup -result {1 0 2 3 0 2 1 2 3}
 
-    test dbf-2.7.3.v$v "position after open" -setup {
+    test dbf-2.4.3.v$v "next position after open" -setup {
         testd_setup$v
         testd create {{F N 10 0}} [test_path tmp testd.dbf] testd
         lmap i {10 20 30} {testd append [list $i]}
         testd close
         testd open [test_path tmp testd.dbf] testd
     } -body {
-        testd pos
-    } -cleanup testd_cleanup -result 0
+        list [testd pos] [testd next] [testd blank] [testd pos] [testd next]
+    } -cleanup testd_cleanup -result {0 1 {} 0 1}
 
-    test dbf-2.7.4.v$v "record read" -setup {
+    test dbf-2.4.4.v$v "prev position after open" -setup {
+        testd_setup$v
+        testd create {{F N 10 0}} [test_path tmp testd.dbf] testd
+        lmap i {10 20 30} {testd append [list $i]}
+        testd close
+        testd open [test_path tmp testd.dbf] testd
+    } -body {
+        list [testd pos] [testd prev] [testd blank] [testd pos] [testd prev]
+    } -cleanup testd_cleanup -result {0 0 {} 0 0}
+
+    test dbf-2.4.5.v$v "record read" -setup {
         testd_setup$v
         testd create {{F N 10 0}} [test_path tmp testd.dbf] testd
         lmap i {10 20 30} {testd append [list $i]}
@@ -253,7 +346,7 @@ foreach v {3 4} {
             [testd next] [testd pos] [testd record]
     } -cleanup testd_cleanup -result {1 1 10 0 1 10 2 2 20 3 3 30 0 3 30}
 
-    test dbf-2.7.5.v$v "record write" -setup {
+    test dbf-2.4.6.v$v "record write" -setup {
         testd_setup$v
         testd create {{F N 10 0}} [test_path tmp testd.dbf] testd
         lmap i {10 20 30} {testd append [list $i]}
@@ -267,7 +360,7 @@ foreach v {3 4} {
         testd record
     } -cleanup testd_cleanup -result {100}
 
-    test dbf-2.7.6.v$v "record write no commit, autocommit off" -setup {
+    test dbf-2.4.7.v$v "record write no commit, autocommit off" -setup {
         testd_setup$v
         testd create {{F N 10 0}} [test_path tmp testd.dbf] testd
         lmap i {10 20 30} {testd append [list $i]}
@@ -281,7 +374,7 @@ foreach v {3 4} {
         testd record
     } -cleanup testd_cleanup -result {10}
 
-    test dbf-2.7.5.v$v "record write and commit, autocommit off" -setup {
+    test dbf-2.4.8.v$v "record write and commit, autocommit off" -setup {
         testd_setup$v
         testd create {{F N 10 0}} [test_path tmp testd.dbf] testd
         lmap i {10 20 30} {testd append [list $i]}
@@ -296,7 +389,7 @@ foreach v {3 4} {
         testd record
     } -cleanup testd_cleanup -result {100}
 
-    test dbf-2.7.6.v$v "record write autocommit on" -setup {
+    test dbf-2.4.9.v$v "record write autocommit on" -setup {
         testd_setup$v
         testd create {{F N 10 0}} [test_path tmp testd.dbf] testd
         lmap i {10 20 30} {testd append [list $i]}
@@ -310,7 +403,22 @@ foreach v {3 4} {
         testd record
     } -cleanup testd_cleanup -result {100}
 
-    test dbf-2.7.7.v$v "record deleted flag" -setup {
+    test dbf-2.4.10.v$v "record write abort autocommit on" -setup {
+        testd_setup$v
+        testd create {{F N 10 0}} [test_path tmp testd.dbf] testd
+        lmap i {10 20 30} {testd append [list $i]}
+    } -body {
+        testd autocommit 1
+        testd first
+        testd record {100}
+        testd abort
+        testd close
+        testd open [test_path tmp testd.dbf] testd
+        testd first
+        testd record
+    } -cleanup testd_cleanup -result {10}
+
+    test dbf-2.4.11.v$v "record deleted flag" -setup {
         testd_setup$v
         testd create {{F N 10 0}} [test_path tmp testd.dbf] testd
         lmap i {10 20 30} {testd append [list $i]}
@@ -323,7 +431,7 @@ foreach v {3 4} {
         list [testd first] [testd next] [testd pos 2] [testd deleted] [testd record]
     } -cleanup testd_cleanup -result {1 3 2 1 20}
 
-    test dbf-2.7.8.v$v "pack" -setup {
+    test dbf-2.4.12.v$v "pack" -setup {
         testd_setup$v
         testd create {{F N 10 0}} [test_path tmp testd.dbf] testd
         lmap i {10 20 30} {testd append [list $i]}
@@ -342,7 +450,7 @@ foreach v {3 4} {
             [file size [test_path tmp testd.dbf]]
     } -cleanup testd_cleanup -result [list {} 99 [test_path tmp testd.dbf] 3 2 1 3 {} 2 {} 87]
 
-    test dbf-2.7.9.v$v "zap" -setup {
+    test dbf-2.4.13.v$v "zap" -setup {
         testd_setup$v
         testd create {{F N 10 0}} [test_path tmp testd.dbf] testd
         lmap i {10 20 30} {testd append [list $i]}
@@ -361,8 +469,126 @@ foreach v {3 4} {
     unset v
 }
 
-# fields
+set schema_intl [list [list \u0410\u0411 C 2 0]]
+set record_intl [list [list \u0412\u0413]]
+set encoding_intl "cp866"
 
+foreach v {3 4} {
+    test dbf-2.5.1.v$v "create intl" -setup {
+        testd_setup$v
+        testd encoding $encoding_intl
+    } -body {
+        testd create $schema_intl [test_path tmp testd.dbf] testd
+    } -cleanup testd_cleanup -result [test_path tmp testd.dbf]
+
+    test dbf-2.5.2.v$v "create intl" -setup {
+        testd_setup$v
+        testd encoding $encoding_intl
+        testd create $schema_intl [test_path tmp testd.dbf] testd
+    } -body {
+        testd close
+        testd open [test_path tmp testd.dbf] testd
+        list [testd schema] [testd fields] [testd append $record_intl]
+    } -cleanup testd_cleanup -result [list $schema_intl [lmap f $schema_intl {lindex $f 0}] $record_intl]
+
+    test dbf-2.5.3.v$v "create intl" -setup {
+        testd_setup$v
+        testd encoding $encoding_intl
+        testd create $schema_intl [test_path tmp testd.dbf] testd
+        testd append $record_intl
+        testd close
+        testd open [test_path tmp testd.dbf] testd
+    } -body {
+        testd first
+        list [testd record] [testd field [lindex [lindex $schema_intl 0] 0]]
+    } -cleanup testd_cleanup -result [list $record_intl [lindex [lindex $record_intl 0] 0]]
+
+    test dbf-2.5.4.v$v "fields list" -setup {
+        testd_setup$v
+        testd create [set schema$v] [test_path tmp testd.dbf] testd
+    } -body {
+        testd fields
+    } -cleanup testd_cleanup -result [lmap f [set schema$v] {lindex $f 0}]
+
+    test dbf-2.5.5.v$v "field write" -setup {
+        testd_setup$v
+        testd create [set schema$v] [test_path tmp testd.dbf] testd
+    } -body {
+        testd field F1 bla
+        testd commit
+        list [testd size] [testd pos] [testd record]
+    } -cleanup testd_cleanup -result {1 1 {bla {} {} {} {}}}
+
+    test dbf-2.5.6.v$v "simple append" -setup {
+        testd_setup$v
+        testd create [set schema$v] [test_path tmp testd.dbf] testd
+    } -body {
+        lmap i $records {testd append $i}
+    } -cleanup testd_cleanup -result $records
+
+    test dbf-2.5.7.v$v "read records using fields" -setup {
+        testd_setup$v
+        testd create [set schema$v] [test_path tmp testd.dbf] testd
+        lmap i $records {testd append $i}
+    } -body {
+        set result {}
+        testd blank
+        while {[testd next]} {
+            lappend result [testd fields [testd fields]]
+        }
+        set result
+    } -cleanup testd_cleanup -result $records
+
+    test dbf-2.5.8.v$v "read records using field by field" -setup {
+        testd_setup$v
+        testd create [set schema$v] [test_path tmp testd.dbf] testd
+        lmap i $records {testd append $i}
+    } -body {
+        set result {}
+        testd blank
+        while {[testd next]} {
+            set record {}
+            foreach f [set schema$v] {
+                lappend record [testd field [lindex $f 0]]
+            }
+            lappend result $record
+        }
+        set result
+    } -cleanup testd_cleanup -result $records
+
+    unset v
+}
+
+foreach v {3 4} {
+
+    test dbf-2.6.1.v$v "create memo" -setup testd_setup$v -body {
+        testd create $schema_memo [test_path tmp testd.dbf] testd
+    } -cleanup testd_cleanup -result [test_path tmp testd.dbf]
+
+    test dbf-2.6.2.v$v "simple append" -setup {
+        testd_setup$v
+        testd create $schema_memo [test_path tmp testd.dbf] testd
+    } -body {
+        lmap i $records_memo {testd append $i}
+    } -cleanup testd_cleanup -result $records_memo
+
+    test dbf-2.6.3.v$v "read records using fields" -setup {
+        testd_setup$v
+        testd create $schema_memo [test_path tmp testd.dbf] testd
+        lmap i $records_memo {testd append $i}
+        testd close
+        testd open [test_path tmp testd.dbf] testd
+    } -body {
+        set result {}
+        testd blank
+        while {[testd next]} {
+            lappend result [testd record]
+        }
+        set result
+    } -cleanup testd_cleanup -result $records_memo
+
+    unset v
+}
 
 xbase log string "STOP [info script]"
 xbase log enabled 0
