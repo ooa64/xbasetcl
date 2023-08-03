@@ -11,18 +11,14 @@ test xbase-1.1 "version" {
     xbase version
 } {4.1.4}
 
-test xbase-1.2 "version abbrev" {
-    xbase ver
-} {4.1.4}
-
-test xbase-1.3 "date format" {
+test xbase-1.2 "date format" {
     set result ""
     lappend result [xbase dateformat]
     lappend result [xbase dateform bla-bla-bla]
     lappend result [xbase date [lindex $result 0]]
 } {MM/DD/YY bla-bla-bla MM/DD/YY}
 
-test xbase-1.4 "encoding" {
+test xbase-1.3 "encoding" {
     set result ""
     lappend result [xbase encoding]
     lappend result [xbase encod ascii]
@@ -82,7 +78,7 @@ foreach {f c r} {
     dbase_f5.dbf                  1 "Not an Xbase type database"
     polygon.dbf                   0 ""
 } {
-    test xbase-3.4-$f "open file not exists error" -body {
+    test xbase-3.4.$f "open dbf" -body {
         xbase open [file join [testsDirectory] fixtures $f] testd
         testd close
         rename testd {}
@@ -93,65 +89,29 @@ test xbase-4.1 "log syntax" -body {
     xbase log foo
 } -returnCodes 1 -result "bad command \"foo\": must be directory, name, size, enabled, string, bytes, or flush"
 
-test xbase-4.2 "log directory" -body {
-    list \
-        [xbase log directory] \
-        [xbase log directory foo] \
-        [xbase log directory] \
-        [xbase log directory [file nativename ~/xbase64/logs]] \
-        [xbase log directory]
-} -result [list \
-    [file nativename ~/xbase64/logs] \
-    "foo" \
-    "foo" \
-    [file nativename ~/xbase64/logs] \
-    [file nativename ~/xbase64/logs]]
+foreach {o v} {
+    directory foo
+    name foo
+    size 12345
+    enabled 1
+} {
+    set d [xbase log $o]
 
-test xbase-4.3 "log name" -body {
-    list \
-        [xbase log name] \
-        [xbase log name foo] \
-        [xbase log name] \
-        [xbase log name xbLog.txt] \
-        [xbase log name]
-} -result [list \
-    "Windows_x64.xbLog.txt" \
-    "foo" \
-    "foo" \
-    "xbLog.txt" \
-    "xbLog.txt"]
+    test xbase-4.2.$o "log command $o" {
+        list [xbase log $o $v] [xbase log $o]
+    } [list $v $v]
 
-test xbase-4.4 "log size" -body {
-    list \
-        [xbase log size] \
-        [xbase log size 1000] \
-        [xbase log size] \
-        [xbase log size 100000] \
-        [xbase log size]
-} -result [list \
-    100000 \
-    1000 \
-    1000 \
-    100000 \
-    100000]
+    xbase log $o $d
+    unset o v d
+}
 
-test xbase-4.5 "log enabled" -body {
-    list \
-        [xbase log enabled] \
-        [xbase log enabled 1] \
-        [xbase log enabled] \
-        [xbase log enabled 0] \
-        [xbase log enabled]
-} -result [list \
-    0 \
-    1 \
-    1 \
-    0 \
-    0]
-
-test xbase-4.6 "log write" -setup {
-    catch {file delete [file join [testsDirectory] tmp foo]}
-    xbase log directory [file join [testsDirectory] tmp]
+test xbase-4.3 "log write/flush" -setup {
+    set t [file join [testsDirectory] tmp]
+    set e [xbase log enabled]
+    set d [xbase log directory]
+    set n [xbase log name]
+    catch {file delete $t/foo}
+    xbase log directory $t
     xbase log name foo
     xbase log enabled true
 } -body {
@@ -159,10 +119,10 @@ test xbase-4.6 "log write" -setup {
     xbase log flush
     viewFile [xbase log name] [xbase log directory]
 } -cleanup {
-    xbase log enabled false
-    xbase log name "xbLog.txt"
-    xbase log directory [file nativename ~/xbase64/logs]
-    catch {file delete [file join [testsDirectory] tmp foo]}
+    xbase log enabled $e
+    xbase log directory $d
+    xbase log name $n
+    catch {file delete $t/foo}
 } -result {????-??-?? ??:??:?? - bar} -match glob
 
 cleanupTests

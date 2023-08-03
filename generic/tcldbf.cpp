@@ -120,7 +120,7 @@ int TclDbf::Command (int objc, struct Tcl_Obj * CONST objv[])
     } else {
       int rc;
       char * filename;
-        Tcl_DString s;
+      Tcl_DString s;
     
       filename = Tcl_TranslateFileName(interp, Tcl_GetString(objv[2]), &s);
       if (filename == NULL) {
@@ -336,7 +336,7 @@ int TclDbf::Command (int objc, struct Tcl_Obj * CONST objv[])
     }
     // NOTE: xbase64-4.1.4 crashes updating unopened dbf
     if (dbf->GetDbfStatus() == XB_CLOSED && index == cmUpdate) {
-      Tcl_AppendResult(interp, "(crash)", NULL);
+      Tcl_AppendResult(interp, "Database not open (crash)", NULL);
       return TCL_ERROR;
     }
     switch ((enum commands)index) {

@@ -19,6 +19,15 @@ proc testd_setup3 {} {xbase dbf -dbf3 testd}
 proc testd_setup4 {} {xbase dbf -dbf4 testd}
 proc testd_cleanup {} {testd close; rename testd {}; file delete [test_path tmp testd.dbf]}
 
+set xbaseLogEnabled [xbase log enabled]
+set xbaseLogDirectory [xbase log directory]
+set xbaseLogName [xbase log name]
+xbase log enabled 0
+xbase log directory [file join [testsDirectory] tmp]
+xbase log name "20-dbf.log"
+xbase log enabled 1
+xbase log string "START [info script]"
+
 test dbf-1.0 "create/destroy dbf object" {
     list [xbase dbf testd] [testd close] [rename testd {}]
 } {testd {} {}}
@@ -114,7 +123,7 @@ foreach v {3 4} {
             [testd create {{F N 10 0}} [test_path tmp testd.dbf] testd] \
             [testd commit] \
             [file size [test_path tmp testd.dbf]] \
-    } -cleanup "testd_cleanup" -result [list [test_path tmp testd.dbf] {} 65]
+    } -cleanup testd_cleanup -result [list [test_path tmp testd.dbf] {} 65]
 
     test dbf-2.3.v$v "created dbf status" -setup {
         testd_setup$v
@@ -126,8 +135,10 @@ foreach v {3 4} {
             [testd schema] \
             [testd status] \
             [testd position] \
+            [testd first] \
+            [testd last] \
             [testd size]
-    } -cleanup "testd_cleanup" -result [list [test_path tmp testd.dbf] testd {{F N 10 0}} open 0 0]
+    } -cleanup testd_cleanup -result [list [test_path tmp testd.dbf] testd {{F N 10 0}} open 0 0 0 0]
 
     test dbf-2.4.v$v "drop dbf" -setup {
         testd_setup$v
@@ -137,20 +148,226 @@ foreach v {3 4} {
             [testd drop] \
             [testd status] \
             [file exists [test_path tmp testd.dbf]]
-    } -cleanup "testd_cleanup" -result [list open {} closed 0]
+    } -cleanup testd_cleanup -result [list open {} closed 0]
 
-    test dbf-2.5.v$v "drop dbf" -setup {
+    unset v
+}
+
+foreach v {3 4} {
+    set f [file nativename [file join [testsDirectory] fixtures dbase_03.dbf]]
+
+    test dbf-2.6.0.0.v$v "open dbf3" -setup testd_setup$v -body {
+        testd open $f testd
+    } -cleanup testd_cleanup -result $f
+
+    test dbf-2.6.0.1.$v "open dbf3 and check open list" -setup testd_setup$v -body {
+        testd open $f testd
+        xbase list
+    } -cleanup testd_cleanup -result [list $f]
+
+    test dbf-2.6.0.2.v$v "open/close dbf3 and check open list" -setup testd_setup3 -body {
+        testd open $f testd
+        testd close
+        xbase list
+    } -cleanup testd_cleanup -result {}
+
+    set f [file nativename [file join [testsDirectory] fixtures dbase_8b.dbf]]
+
+    test dbf-2.6.0.3.v$v "open dbf4 and check open list" -setup testd_setup$v -body {
+        testd open $f testd
+        xbase list
+    } -cleanup testd_cleanup -result [list $f]
+
+    test dbf-2.6.0.4.v$v "open/close dbf4 and check open list" -setup testd_setup3 -body {
+        testd open $f testd
+        testd close
+        xbase list
+    } -cleanup testd_cleanup -result {}
+
+    set f [file nativename [file join [testsDirectory] fixtures cp1251.dbf]]
+
+    test dbf-2.6.0.9.$v "open unsupported file" -constraints brokenOpenUnsupported -setup testd_setup$v -body {
+        list [catch {testd open $f testd} result] $result [xbase list] [testd close] [xbase list]
+    } -cleanup testd_cleanup -result [list 1 {Not an Xbase type database} {} {} {}]
+
+    unset f v
+}
+
+foreach v {3 4} {
+
+    test dbf-2.7.1.v$v "simple append" -setup {
         testd_setup$v
         testd create {{F N 10 0}} [test_path tmp testd.dbf] testd
     } -body {
         list \
+            [testd close] \
+            [file size [test_path tmp testd.dbf]] \
+            [testd open [test_path tmp testd.dbf] testd] \
+            [testd size] \
+            [testd position] \
             [lmap i {10 20 30} {testd append [list $i]}] \
             [testd size] \
             [testd position] \
-            [testd record]
-    } -cleanup "testd_cleanup" -result {{10 20 30} 3 3 30}
+            [testd record] \
+            [testd close] \
+            [file size [test_path tmp testd.dbf]]
+    } -cleanup testd_cleanup -result [list {} 65 [test_path tmp testd.dbf] 0 0 {10 20 30} 3 3 30 {} 99]
+
+    test dbf-2.7.2.v$v "set position" -setup {
+        testd_setup$v
+        testd create {{F N 10 0}} [test_path tmp testd.dbf] testd
+        lmap i {10 20 30} {testd append [list $i]}
+    } -body {
+        list \
+            [testd first] \
+            [testd prev] \
+            [testd next] \
+            [testd last] \
+            [testd next] \
+            [testd pos 2] \
+            [testd prev] \
+            [testd pos 2] \
+            [testd next]
+    } -cleanup testd_cleanup -result {1 0 2 3 0 2 1 2 3}
+
+    test dbf-2.7.3.v$v "position after open" -setup {
+        testd_setup$v
+        testd create {{F N 10 0}} [test_path tmp testd.dbf] testd
+        lmap i {10 20 30} {testd append [list $i]}
+        testd close
+        testd open [test_path tmp testd.dbf] testd
+    } -body {
+        testd pos
+    } -cleanup testd_cleanup -result 0
+
+    test dbf-2.7.4.v$v "record read" -setup {
+        testd_setup$v
+        testd create {{F N 10 0}} [test_path tmp testd.dbf] testd
+        lmap i {10 20 30} {testd append [list $i]}
+    } -body {
+        list \
+            [testd first] [testd pos] [testd record] \
+            [testd prev] [testd pos] [testd record] \
+            [testd next] [testd pos] [testd record] \
+            [testd next] [testd pos] [testd record] \
+            [testd next] [testd pos] [testd record]
+    } -cleanup testd_cleanup -result {1 1 10 0 1 10 2 2 20 3 3 30 0 3 30}
+
+    test dbf-2.7.5.v$v "record write" -setup {
+        testd_setup$v
+        testd create {{F N 10 0}} [test_path tmp testd.dbf] testd
+        lmap i {10 20 30} {testd append [list $i]}
+    } -body {
+        testd first
+        testd record {100}
+        testd commit
+        testd close
+        testd open [test_path tmp testd.dbf] testd
+        testd first
+        testd record
+    } -cleanup testd_cleanup -result {100}
+
+    test dbf-2.7.6.v$v "record write no commit, autocommit off" -setup {
+        testd_setup$v
+        testd create {{F N 10 0}} [test_path tmp testd.dbf] testd
+        lmap i {10 20 30} {testd append [list $i]}
+    } -body {
+        testd autocommit 0
+        testd first
+        testd record {100}
+        testd close
+        testd open [test_path tmp testd.dbf] testd
+        testd first
+        testd record
+    } -cleanup testd_cleanup -result {10}
+
+    test dbf-2.7.5.v$v "record write and commit, autocommit off" -setup {
+        testd_setup$v
+        testd create {{F N 10 0}} [test_path tmp testd.dbf] testd
+        lmap i {10 20 30} {testd append [list $i]}
+    } -body {
+        testd autocommit 0
+        testd first
+        testd record {100}
+        testd commit
+        testd close
+        testd open [test_path tmp testd.dbf] testd
+        testd first
+        testd record
+    } -cleanup testd_cleanup -result {100}
+
+    test dbf-2.7.6.v$v "record write autocommit on" -setup {
+        testd_setup$v
+        testd create {{F N 10 0}} [test_path tmp testd.dbf] testd
+        lmap i {10 20 30} {testd append [list $i]}
+    } -body {
+        testd autocommit 1
+        testd first
+        testd record {100}
+        testd close
+        testd open [test_path tmp testd.dbf] testd
+        testd first
+        testd record
+    } -cleanup testd_cleanup -result {100}
+
+    test dbf-2.7.7.v$v "record deleted flag" -setup {
+        testd_setup$v
+        testd create {{F N 10 0}} [test_path tmp testd.dbf] testd
+        lmap i {10 20 30} {testd append [list $i]}
+    } -body {
+        testd position 2
+        testd deleted 1
+        testd commit
+        testd close
+        testd open [test_path tmp testd.dbf] testd
+        list [testd first] [testd next] [testd pos 2] [testd deleted] [testd record]
+    } -cleanup testd_cleanup -result {1 3 2 1 20}
+
+    test dbf-2.7.8.v$v "pack" -setup {
+        testd_setup$v
+        testd create {{F N 10 0}} [test_path tmp testd.dbf] testd
+        lmap i {10 20 30} {testd append [list $i]}
+    } -body {
+        list \
+            [testd close] \
+            [file size [test_path tmp testd.dbf]] \
+            [testd open [test_path tmp testd.dbf] testd] \
+            [testd size] \
+            [testd position 2] \
+            [testd deleted 1] \
+            [testd size] \
+            [testd pack] \
+            [testd size] \
+            [testd close] \
+            [file size [test_path tmp testd.dbf]]
+    } -cleanup testd_cleanup -result [list {} 99 [test_path tmp testd.dbf] 3 2 1 3 {} 2 {} 87]
+
+    test dbf-2.7.9.v$v "zap" -setup {
+        testd_setup$v
+        testd create {{F N 10 0}} [test_path tmp testd.dbf] testd
+        lmap i {10 20 30} {testd append [list $i]}
+    } -body {
+        list \
+            [testd close] \
+            [file size [test_path tmp testd.dbf]] \
+            [testd open [test_path tmp testd.dbf] testd] \
+            [testd size] \
+            [testd zap] \
+            [testd size] \
+            [testd close] \
+            [file size [test_path tmp testd.dbf]]
+    } -cleanup testd_cleanup -result [list {} 99 [test_path tmp testd.dbf] 3 {} 0 {} 65]
 
     unset v
 }
+
+# fields
+
+
+xbase log string "STOP [info script]"
+xbase log enabled 0
+xbase log name $xbaseLogName
+xbase log directory $xbaseLogDirectory
+xbase log enabled $xbaseLogEnabled
 
 cleanupTests

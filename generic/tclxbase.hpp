@@ -16,10 +16,8 @@ class TclXbase : public TclCmd {
 
 public:
 
-  TclXbase(Tcl_Interp * interp, CONST char * name) : TclCmd(interp, name) {
-    xbase = new xbXBase();
-    encoding = NULL;
-  };
+  TclXbase(Tcl_Interp * interp, CONST char * name) :
+    TclCmd(interp, name), encoding(NULL), xbase(new xbXBase()) {};
   
   virtual ~TclXbase() {
     Tcl_FreeEncoding(encoding);
