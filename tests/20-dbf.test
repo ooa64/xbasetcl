@@ -5,56 +5,21 @@ namespace import tcltest::*
 
 set commands {create drop open close pack zap name alias version status schema autocommit encoding blank fields record append update deleted commit abort first last prev next position size index filter}
 
-set schema3 [lrange {
-    {F1 C 10 0}
-    {F2 L 1 0}
-    {F3 N 10 0}
-    {F4 D 8 0}
-    {F5 N 10 2}
-} 0 end]
-
-set schema4 [lrange {
-    {F1 C 10 0}
-    {F2 L 1 0}
-    {F3 N 10 0}
-    {F4 D 8 0}
-    {F5 F 10 2}
-} 0 end]
-
-set records [lrange {
-    {1st T 11 20010101 11.11}
-    {2nd F 22 20020202 22.22}
-    {3rd ? 33 20030303 33.33}
-} 0 end]
-
-set schema_memo [lrange {
-    {F1 C 10 0}
-    {F2 M 10 0}
-} 0 end]
-
-set records_memo [lrange {
-    {1st {}}
-    {2nd {This is a second record}}
-    {3rd {}}
-    {4th {This is a last record}}
-} 0 end]
-
-set schema_intl [list [list \u0410\u0411 C 2 0]]
-set record_intl [list [list \u0412\u0413]]
-set encoding_intl "cp866"
-
 proc test_path {args} {file nativename [file join [testsDirectory] {*}$args]}
-proc testd_setup {} {xbase dbf testd}
 proc testd_setup3 {} {xbase dbf -dbf3 testd}
 proc testd_setup4 {} {xbase dbf -dbf4 testd}
-proc testd_cleanup {} {testd close; rename testd {}; file delete [test_path tmp testd.dbf] [test_path tmp testd.dbt]}
+proc testd_cleanup {} {
+    testd close
+    rename testd {}
+    foreach x {dbf dbt} {file delete [test_path tmp testd.$x]}
+}
 
 set xbaseLogEnabled [xbase log enabled]
 set xbaseLogDirectory [xbase log directory]
 set xbaseLogName [xbase log name]
 xbase log enabled 0
 xbase log directory [file join [testsDirectory] tmp]
-xbase log name "20-dbf.log"
+xbase log name [file tail [info script]].txt
 xbase log enabled 1
 xbase log string "START [info script]"
 
@@ -62,7 +27,7 @@ test dbf-1.0 "create/destroy dbf object" {
     list [xbase dbf testd] [testd close] [rename testd {}]
 } {testd {} {}}
 
-test dbf-1.1 "dbf commands list" -setup testd_setup -body {
+test dbf-1.1 "dbf commands list" -setup testd_setup3 -body {
     testd foo
 } -cleanup testd_cleanup -returnCodes 1 -result \
     "bad command \"foo\": must be [join [lrange $commands 0 end-1] ", "], or [lindex $commands end]"
@@ -595,5 +560,3 @@ xbase log enabled 0
 xbase log name $xbaseLogName
 xbase log directory $xbaseLogDirectory
 xbase log enabled $xbaseLogEnabled
-
-cleanupTests

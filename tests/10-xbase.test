@@ -125,4 +125,3 @@ test xbase-4.3 "log write/flush" -setup {
     catch {file delete $t/foo}
 } -result {????-??-?? ??:??:?? - bar} -match glob
 
-cleanupTests
