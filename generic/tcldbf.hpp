@@ -69,6 +69,7 @@ private:
   virtual void Cleanup();
   virtual int Command (int objc, struct Tcl_Obj * CONST objv[]);
 
+  int Index (int objc, struct Tcl_Obj * CONST objv[]);
   int Create (Tcl_Obj * filename, Tcl_Obj * alias, Tcl_Obj * schema, int overlay, int share);
   int Schema (Tcl_Obj * result, unsigned include);
   int Fields (Tcl_Obj * result, Tcl_Obj * namev, Tcl_Obj * valuev);

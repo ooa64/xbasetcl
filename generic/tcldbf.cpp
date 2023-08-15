@@ -23,9 +23,9 @@ void TclDbf::Cleanup () {
   }
 };
 
-int TclDbf::Command (int objc, struct Tcl_Obj * CONST objv[])
+int TclDbf::Command (int objc, struct Tcl_Obj * const objv[])
 {
-  static CONST char *commands[] = {
+  static const char *commands[] = {
     "create", "drop",   "open",   "close",   "pack",   "zap",      
     "name",   "alias",  "version", "status", "schema",   "autocommit", "encoding",
     "blank",  "fields", "record",  "append", "update",   "deleted",    "commit",   "abort",
@@ -48,7 +48,7 @@ int TclDbf::Command (int objc, struct Tcl_Obj * CONST objv[])
   }
 
   if (Tcl_GetIndexFromObj(interp, objv[1],
-                          (CONST char **)commands, "command", 0, &index) != TCL_OK) {
+                          (const char **)commands, "command", 0, &index) != TCL_OK) {
     return TCL_ERROR;
   }
 
@@ -469,29 +469,6 @@ int TclDbf::Command (int objc, struct Tcl_Obj * CONST objv[])
 
     break;
 
-  case cmIndex:
-    
-    if (objc < 3 || objc > 4) {
-      Tcl_WrongNumArgs(interp, 2, objv, "?-ndx|-mdx? name");
-      return TCL_ERROR;
-    } else {
-      if (objc == 4) {
-        if (strcmp(Tcl_GetString(objv[2]), "-ndx") == 0) {
-          (void) new TclNdx(interp, Tcl_GetString(objv[3]), this);
-        } else if (strcmp(Tcl_GetString(objv[2]), "-mdx") == 0) {
-          (void) new TclMdx(interp, Tcl_GetString(objv[3]), this);
-        } else {
-          Tcl_AppendResult(interp, "bad option ", Tcl_GetString(objv[2]), NULL);
-          return TCL_ERROR;
-        }
-      } else {
-        (void) new TclNdx(interp, Tcl_GetString(objv[2]), this);
-      }
-      Tcl_SetObjResult(interp, objv[objc - 1]);
-    }
-    
-    break;
-    
   case cmFilter:
     
     if (objc != 4) {
@@ -503,11 +480,209 @@ int TclDbf::Command (int objc, struct Tcl_Obj * CONST objv[])
 
     break;
 
+  case cmIndex:
+
+    return Index(objc, objv);
+    
   default:
+
     return TCL_ERROR;
 
   } // switch index
   
+  return TCL_OK;
+}
+
+int TclDbf::Index (int objc, struct Tcl_Obj * const objv[]) {
+  static const char *const commands[] = {
+    "create", "drop", "open", "close", "list", "check", "reindex", "current", "name", "type",
+    "first",  "last", "prev", "next", "find", 0L
+  };
+  enum commands {
+    cmCreate, cmDrop, cmOpen, cmClose, cmList, cmCheck, cmReindex, cmCurrent, cmName, cmType,
+    cmFirst,  cmLast, cmPrev, cmNext,  cmFind
+  };
+  int index;
+
+  if (objc < 3) {
+    Tcl_WrongNumArgs(interp, 2, objv, "command");
+    return TCL_ERROR;
+  }
+  
+  if (Tcl_GetIndexFromObj(interp, objv[2], 
+                          (const char **)commands, "command", 0, &index) != TCL_OK) {
+    return TCL_ERROR;
+  }
+
+  switch ((enum commands)(index)) {
+
+    case cmCreate:
+
+      // obj index create ?-ndx|-mdx? ?-filter filter? ?-unique? ?-overlay? ?-descending? indexname expression
+      if (objc < 5) {
+        Tcl_WrongNumArgs(interp, 3, objv, "?-ndx|-mdx? ?-filter filter? ?-unique? ?-overlay? ?-descending? expression indexname");
+        return TCL_ERROR;
+      } else {
+        static const char *const options[] = {
+          "-ndx", "-mdx", "-filter", "-unique", "-overlay", "-descending", NULL
+        };
+        enum options {
+          optNdx, optMdx, optFilter, optUnique, optOverlay, optDescending
+        };
+        int descending = 0, unique = 0, overlay = 0;
+        const char * ixtype = "MDX";
+        Tcl_DString ixname;
+        Tcl_DString filter;
+        Tcl_DString expr;
+
+        Tcl_DStringInit(&ixname);
+        Tcl_DStringInit(&filter);
+        Tcl_DStringInit(&expr);
+
+        for (int i = 3; i < objc-2; i++) {
+          int option;
+          if (Tcl_GetIndexFromObj(interp, objv[i], options, "option", 0, &option) != TCL_OK) {
+              return TCL_ERROR;
+          }
+          switch ((enum options) option) {
+            case optNdx:
+              ixtype = "NDX";
+              break;
+            case optMdx:
+              ixtype = "MDX";
+              break;
+            case optFilter:
+              if (++i < objc-2) {
+                Tcl_UtfToExternalDString(Encoding(), Tcl_GetString(objv[i]), -1, &filter);
+              } else {
+                Tcl_AppendResult(interp, "missing filter expression", NULL);
+                return TCL_ERROR;
+              }
+              break;
+            case optUnique:
+              unique = 1;
+              break;
+            case optOverlay:
+              overlay = 1;
+              break;
+            case optDescending:
+              descending = 1;
+              break;
+            default:
+              return TCL_ERROR;
+          }
+        }
+
+        if (Tcl_TranslateFileName(interp, Tcl_GetString(objv[objc - 1]), &ixname) == NULL) {
+          return TCL_ERROR;
+        }
+        
+        Tcl_UtfToExternalDString(Encoding(), Tcl_GetString(objv[objc - 2]), -1, &expr);
+
+        xbIx *ix = NULL;
+        void *tag = NULL;
+        int rc = dbf->CreateTag(ixtype, Tcl_DStringValue(&ixname), Tcl_DStringValue(&expr), Tcl_DStringValue(&filter),
+          descending, unique, overlay, &ix, &tag);
+        
+        Tcl_DStringInit(&expr);
+        Tcl_DStringInit(&filter);
+        Tcl_DStringFree(&ixname);
+        
+        if (CheckRC(rc) != TCL_OK) {
+          return TCL_ERROR;
+        }
+
+        Tcl_AppendResult(interp, (const char *)dbf->GetCurIx()->GetFqFileName().Str(), NULL);
+      }
+      break;
+
+    case cmDrop:
+
+      // obj index drop ?-ndx|-mdx? ixname
+      if (objc < 4 || objc > 5) {
+        Tcl_WrongNumArgs(interp, 3, objv, "?-ndx|-mdx? indexname");
+        return TCL_ERROR;
+      } else {
+        const char * ixtype = "MDX";
+        if (objc == 5) {
+          if (strcmp(Tcl_GetString(objv[4]), "-ndx") == 0) {
+            ixtype = "NDX";
+          } else if (strcmp(Tcl_GetString(objv[4]), "-mdx") != 0) {
+            Tcl_AppendResult(interp, "invalid index type", NULL);
+            return TCL_ERROR;
+          }
+        }
+
+        Tcl_DString ixname;
+        Tcl_DStringInit(&ixname);
+        if (Tcl_TranslateFileName(interp, Tcl_GetString(objv[3]), &ixname) == NULL) {
+          return TCL_ERROR;
+        }
+        int rc = dbf->DeleteTag(ixtype, Tcl_DStringValue(&ixname));
+        Tcl_DStringFree(&ixname);
+
+        if (CheckRC(rc) != TCL_OK) {
+          return TCL_ERROR;
+        }
+      }
+      break;
+
+    case cmOpen:
+
+      // obj index open ?-ndx|-mdx? ixname
+      if (objc < 4 || objc > 5) {
+        Tcl_WrongNumArgs(interp, 3, objv, "?-ndx|-mdx? indexname");
+        return TCL_ERROR;
+      } else {
+        const char * ixtype = "MDX";
+        if (objc == 5) {
+          if (strcmp(Tcl_GetString(objv[4]), "-ndx") == 0) {
+            ixtype = "NDX";
+          } else if (strcmp(Tcl_GetString(objv[4]), "-mdx") != 0) {
+            Tcl_AppendResult(interp, "invalid index type", NULL);
+            return TCL_ERROR;
+          }
+        }
+
+        Tcl_DString ixname;
+        Tcl_DStringInit(&ixname);
+        if (Tcl_TranslateFileName(interp, Tcl_GetString(objv[objc - 1]), &ixname) == NULL) {
+          return TCL_ERROR;
+        }
+        int rc = dbf->OpenIndex(ixtype, Tcl_DStringValue(&ixname));
+        Tcl_DStringFree(&ixname);
+
+        if (CheckRC(rc) != TCL_OK) {
+          return TCL_ERROR;
+        }
+
+        Tcl_AppendResult(interp, (const char *)dbf->GetCurIx()->GetFqFileName().Str(), NULL);
+      }
+      break;
+
+    case cmList:
+
+      if (objc != 3) {
+        Tcl_WrongNumArgs(interp, 2, objv, NULL);
+        return TCL_ERROR;
+      } else {
+        Tcl_Obj * list = Tcl_NewObj();
+        xbLinkListNode<xbTag *> * node = dbf->GetTagList();
+        while (node) {
+          xbTag * tag = node->GetKey();          
+          Tcl_ListObjAppendElement(NULL, list,
+            Tcl_NewStringObj(EncodeTclString(tag->GetTagName().Str()), -1));
+          node = node->GetNextNode();
+        }
+        Tcl_ListObjAppendElement(NULL, Tcl_GetObjResult(interp), list);
+      }
+      break;
+
+    default:
+      return TCL_ERROR;
+
+  } // switch index
+
   return TCL_OK;
 }
 

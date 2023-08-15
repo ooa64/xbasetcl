@@ -1,0 +1,130 @@
+package require tcltest
+package require xbasetcl
+
+namespace import tcltest::*
+
+proc test_path {args} {file nativename [file join [testsDirectory] {*}$args]}
+proc testd_setup {} {xbase dbf testd}
+proc testd_setup3 {} {xbase dbf -dbf3 testd}
+proc testd_setup4 {} {xbase dbf -dbf4 testd}
+proc testd_cleanup {} {
+    testd close
+    rename testd {}
+    foreach x {dbf dbt ndx mdx} {file delete [test_path tmp testd.$x]}
+}
+
+set xbaseLogEnabled [xbase log enabled]
+set xbaseLogDirectory [xbase log directory]
+set xbaseLogName [xbase log name]
+xbase log enabled 0
+xbase log directory [file join [testsDirectory] tmp]
+xbase log name [file tail [info script]].txt
+xbase log enabled 1
+xbase log string "START [info script]"
+
+test index-1.0 "create/destroy index object" {
+    list [xbase dbf testd] [testd index testi] [info command testi] [testd close] [rename testd {}] [info command testi]
+} {testd testi testi {} {} {}}
+
+test index-1.1 "dbf commands list" -setup testd_setup3 -body {
+    testd index testi
+    testi foo
+} -cleanup testd_cleanup -returnCodes 1 -result \
+    "bad command \"foo\": must be create, open, close, reindex, name, dbf, type, first, last, prev, next, or find"
+
+foreach v {3 4} {
+    foreach t {ndx mdx} {
+
+        test index-2.1.$t.v$v "new index" -setup {
+            testd_setup$v
+            testd create {{F C 10 0}} [test_path tmp testd.dbf] testd
+        } -body {
+            testd index -$t testi
+        } -cleanup testd_cleanup -result testi
+
+        test index-2.2.$t.v$v "new index" -setup {
+            testd_setup$v
+            testd create {{F C 10 0}} [test_path tmp testd.dbf] testd
+            testd index -$t testi
+        } -body {
+            list [testi name] [testi dbf] [testi type]
+        } -cleanup testd_cleanup -result [list {} testd $t]
+
+        test index-2.3.$t.v$v "new index/close dbf" -setup {
+            testd_setup$v
+            testd create {{F C 10 0}} [test_path tmp testd.dbf] testd
+        } -body {
+            testd index -$t testi
+            testd close
+            testi name
+        } -cleanup testd_cleanup -result {}
+
+        test index-2.4.$t.v$v "new index/destoy dbf" -setup {
+            testd_setup$v
+            testd create {{F C 10 0}} [test_path tmp testd.dbf] testd
+        } -body {
+            testd index -$t testi
+            rename testd {}
+            testi name
+        } -cleanup {
+            testd_setup$v
+            testd_cleanup
+        } -returnCodes 1 -result {invalid command name "testi"}
+
+        unset t
+    }
+    unset v
+}
+
+# "?-unique? ?-overlay? ?-descending? filename expression"
+
+
+foreach v {3 4} {
+
+    test index-3.1.v$v "create ndx index" -setup {
+        testd_setup$v
+        testd create {{F C 10 0}} [test_path tmp testd.dbf] testd
+        testd index -ndx testi
+    } -body {
+        testi create [test_path tmp testd.ndx] "F"
+    } -cleanup testd_cleanup -result [test_path tmp testd.ndx]
+
+    test index-3.2.v$v "create mdx index, tag name > 10 chars" -setup {
+        testd_setup$v
+        testd create {{F C 10 0}} [test_path tmp testd.dbf] testd
+        testd index -mdx testi
+    } -body {
+        testi create [test_path tmp testd.mdx] "F"
+    } -cleanup testd_cleanup -returnCodes {0 1} -result {Invalid index tag}
+
+    test index-3.3.v$v "create mdx index, short tag name" -setup {
+        testd_setup$v
+        testd create {{F C 10 0}} [test_path tmp testd.dbf] testd
+        testd index -mdx testi
+    } -body {
+        testi create testd.mdx "F"
+    } -cleanup testd_cleanup -result [test_path tmp testd.mdx]
+
+    test index-3.4.v$v "create mdx index on ndx instanse" -setup {
+        testd_setup$v
+        testd create {{F C 10 0}} [test_path tmp testd.dbf] testd
+        testd index -ndx testi
+    } -body {
+        testi create testd.mdx "F"
+    } -cleanup {exit; testd_cleanup} -returnCodes {0 1} -result {Invalid index tag}
+
+    test index-3.5.v$v "create ndx index on mdx instanse" -setup {
+        testd_setup$v
+        testd create {{F C 10 0}} [test_path tmp testd.dbf] testd
+        testd index -mdx testi
+    } -body {
+        testi create testd.ndx "F"
+    } -cleanup testd_cleanup -returnCodes {0 1} -result {Invalid index tag}
+
+}
+
+xbase log string "STOP [info script]"
+xbase log enabled 0
+xbase log name $xbaseLogName
+xbase log directory $xbaseLogDirectory
+xbase log enabled $xbaseLogEnabled

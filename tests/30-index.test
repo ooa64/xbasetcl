@@ -4,13 +4,13 @@ package require xbasetcl
 namespace import tcltest::*
 
 proc test_path {args} {file nativename [file join [testsDirectory] {*}$args]}
-proc testd_setup {} {xbase dbf testd}
 proc testd_setup3 {} {xbase dbf -dbf3 testd}
 proc testd_setup4 {} {xbase dbf -dbf4 testd}
 proc testd_cleanup {} {
     testd close
     rename testd {}
     foreach x {dbf dbt ndx mdx} {file delete [test_path tmp testd.$x]}
+    foreach x {i 0 1 2 3 4 5 6 7 8 9} {file delete [test_path tmp test$x.ndx]}
 }
 
 set xbaseLogEnabled [xbase log enabled]
@@ -22,110 +22,99 @@ xbase log name [file tail [info script]].txt
 xbase log enabled 1
 xbase log string "START [info script]"
 
-test index-1.0 "create/destroy index object" {
-    list [xbase dbf testd] [testd index testi] [info command testi] [testd close] [rename testd {}] [info command testi]
-} {testd testi testi {} {} {}}
+test index-1.0 "index syntax" -setup testd_setup4 -body {
+    testd index foo
+} -cleanup testd_cleanup -returnCodes 1 -result "bad command \"foo\": must be create, drop, open, close, list, check, reindex, current, name, type, first, last, prev, next, or find"
 
-test index-1.1 "dbf commands list" -setup testd_setup3 -body {
-    testd index testi
-    testi foo
-} -cleanup testd_cleanup -returnCodes 1 -result \
-    "bad command \"foo\": must be create, open, close, reindex, name, dbf, type, first, last, prev, next, or find"
+test index-1.1.0 "index create syntax" -setup testd_setup4 -body {
+    testd index create
+} -cleanup testd_cleanup -returnCodes 1 -result "wrong # args: should be \"testd index create ?-ndx|-mdx? ?-filter filter? ?-unique? ?-overlay? ?-descending? expression indexname\""
 
-foreach v {3 4} {
-    foreach t {ndx mdx} {
+test index-1.1.1 "index create on unopen dbf" -setup testd_setup4 -body {
+    testd index create "F" testi
+} -cleanup testd_cleanup -returnCodes 1 -result "Lock Failed"
 
-        test index-2.1.$t.v$v "new index" -setup {
-            testd_setup$v
-            testd create {{F C 10 0}} [test_path tmp testd.dbf] testd
-        } -body {
-            testd index -$t testi
-        } -cleanup testd_cleanup -result testi
+test index-1.1.2 "index create simple" -setup {
+    testd_setup4
+    testd create {{F N 10 0}} [test_path tmp testd.dbf] testd
+} -body {
+    testd index create "F" testi
+} -cleanup testd_cleanup -result [file rootname [test_path tmp testd.dbf]].MDX
 
-        test index-2.2.$t.v$v "new index" -setup {
-            testd_setup$v
-            testd create {{F C 10 0}} [test_path tmp testd.dbf] testd
-            testd index -$t testi
-        } -body {
-            list [testi name] [testi dbf] [testi type]
-        } -cleanup testd_cleanup -result [list {} testd $t]
+test index-1.1.2.ndx "index create simple ndx" -setup {
+    testd_setup4
+    testd create {{F N 10 0}} [test_path tmp testd.dbf] testd
+} -body {
+    testd index create -ndx -ndx -ndx "F" [test_path tmp testi.ndx]
+} -cleanup testd_cleanup -result [test_path tmp testi.ndx]
 
-        test index-2.3.$t.v$v "new index/close dbf" -setup {
-            testd_setup$v
-            testd create {{F C 10 0}} [test_path tmp testd.dbf] testd
-        } -body {
-            testd index -$t testi
-            testd close
-            testi name
-        } -cleanup testd_cleanup -result {}
+test index-1.1.3 "index create simple check file" -setup {
+    testd_setup4
+    testd create {{F N 10 0}} [test_path tmp testd.dbf] testd
+    testd index create "F" testi
+} -body {
+   file exists [file rootname [test_path tmp testd.dbf]].MDX
+} -cleanup testd_cleanup -result 1
 
-        test index-2.4.$t.v$v "new index/destoy dbf" -setup {
-            testd_setup$v
-            testd create {{F C 10 0}} [test_path tmp testd.dbf] testd
-        } -body {
-            testd index -$t testi
-            rename testd {}
-            testi name
-        } -cleanup {
-            testd_setup$v
-            testd_cleanup
-        } -returnCodes 1 -result {invalid command name "testi"}
+test index-1.1.3.ndx "index create simple check ndx file" -setup {
+    testd_setup4
+    testd create {{F N 10 0}} [test_path tmp testd.dbf] testd
+    testd index create -ndx "F" [test_path tmp testi.ndx]
+} -body {
+   file exists [test_path tmp testi.ndx]
+} -cleanup testd_cleanup -result 1
 
-        unset t
-    }
-    unset v
-}
+test index-1.2 "index list" -setup {
+    testd_setup4
+    testd create {{F N 10 0}} [test_path tmp testd.dbf] testd
+    testd index create "F" testi
+} -body {
+    testd index list
+} -cleanup testd_cleanup -result {testi}
 
-# "?-unique? ?-overlay? ?-descending? filename expression"
+test index-1.2.ndx "index ndx list" -setup {
+    testd_setup4
+    testd create {{F N 10 0}} [test_path tmp testd.dbf] testd
+    testd index create -ndx "F" [test_path tmp testi.ndx]
+} -body {
+    testd index list
+} -cleanup testd_cleanup -result testi
 
+test index-1.3.0 "index drop syntax" -setup testd_setup4 -body {
+    testd index drop foo testi
+} -cleanup testd_cleanup -returnCodes 1 -result "invalid index type"
 
-foreach v {3 4} {
+test index-1.3.1 "index drop unopen dbf" -setup {
+    testd_setup4
+} -body {
+    testd index drop testi
+} -cleanup testd_cleanup -returnCodes {0 1} -result "Lock Failed"
 
-    test index-3.1.v$v "create ndx index" -setup {
-        testd_setup$v
-        testd create {{F C 10 0}} [test_path tmp testd.dbf] testd
-        testd index -ndx testi
-    } -body {
-        testi create [test_path tmp testd.ndx] "F"
-    } -cleanup testd_cleanup -result [test_path tmp testd.ndx]
+test index-1.3.2 "index drop unopen ix" -setup {
+    testd_setup4
+    testd create {{F N 10 0}} [test_path tmp testd.dbf] testd
+} -body {
+    testd index drop testi
+} -cleanup testd_cleanup -returnCodes {0 1} -result "Invalid index tag"
 
-    test index-3.2.v$v "create mdx index, tag name > 10 chars" -setup {
-        testd_setup$v
-        testd create {{F C 10 0}} [test_path tmp testd.dbf] testd
-        testd index -mdx testi
-    } -body {
-        testi create [test_path tmp testd.mdx] "F"
-    } -cleanup testd_cleanup -returnCodes {0 1} -result {Invalid index tag}
+test index-1.3.3 "index drop" -setup {
+    testd_setup4
+    testd create {{F N 10 0}} [test_path tmp testd.dbf] testd
+    testd index create "F" testi
+} -body {
+   list [testd index drop testi] [file exists [file rootname [test_path tmp testd.dbf]].MDX]
+} -cleanup testd_cleanup -result {{} 0}
 
-    test index-3.3.v$v "create mdx index, short tag name" -setup {
-        testd_setup$v
-        testd create {{F C 10 0}} [test_path tmp testd.dbf] testd
-        testd index -mdx testi
-    } -body {
-        testi create testd.mdx "F"
-    } -cleanup testd_cleanup -result [test_path tmp testd.mdx]
-
-    test index-3.4.v$v "create mdx index on ndx instanse" -setup {
-        testd_setup$v
-        testd create {{F C 10 0}} [test_path tmp testd.dbf] testd
-        testd index -ndx testi
-    } -body {
-        testi create testd.mdx "F"
-    } -cleanup testd_cleanup -returnCodes {0 1} -result {Invalid index tag}
-
-    test index-3.4.v$v "create ndx index on mdx instanse" -setup {
-        testd_setup$v
-        testd create {{F C 10 0}} [test_path tmp testd.dbf] testd
-        testd index -mdx testi
-    } -body {
-        testi create testd.ndx "F"
-    } -cleanup testd_cleanup -returnCodes {0 1} -result {Invalid index tag}
-
-}
+test index-1.3.3.ndx "index ndx drop" -setup {
+    testd_setup4
+    testd create {{F N 10 0}} [test_path tmp testd.dbf] testd
+    testd index create -ndx "F" [test_path tmp testi.ndx]
+} -body {
+   list [testd index drop testi] [file exists [test_path tmp testi.ndx]]
+} -cleanup testd_cleanup -result {{} 0}
 
 xbase log string "STOP [info script]"
 xbase log enabled 0
 xbase log name $xbaseLogName
 xbase log directory $xbaseLogDirectory
 xbase log enabled $xbaseLogEnabled
-
