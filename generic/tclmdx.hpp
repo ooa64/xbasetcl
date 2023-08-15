@@ -14,6 +14,12 @@ public:
     index = new xbIxMdx(tcldbf->Dbf());
   };
 
+  TclMdx(Tcl_Interp * interp, char * name, TclDbf * tcldbf, xbIxMdx * aindex)
+    : TclIndex(interp, name, tcldbf) {
+    assert(aindex);
+    index = aindex;
+  };
+
   virtual ~TclMdx() {
     delete index;
   };

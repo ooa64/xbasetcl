@@ -172,7 +172,7 @@ int TclXbase::Log (int objc, struct Tcl_Obj * CONST objv[])
   int index;
 
   if (objc < 3) {
-    Tcl_WrongNumArgs(interp, 1, objv, "command");
+    Tcl_WrongNumArgs(interp, 2, objv, "command");
     return TCL_ERROR;
   }
   
@@ -277,6 +277,9 @@ int TclXbase::Log (int objc, struct Tcl_Obj * CONST objv[])
       }
       xbase->FlushLog();
       break;
+
+    default:
+      return TCL_ERROR;
 
   } // switch index
 
