@@ -96,7 +96,7 @@ int TclDbf::Command (int objc, struct Tcl_Obj * const objv[])
       if (CheckRC(dbf->xbFflush()) != TCL_OK) {
         return TCL_ERROR; 
       }
-      Tcl_AppendResult(interp, (const char *)dbf->GetFqFileName(), NULL);
+      Tcl_AppendResult(interp, EncodeTclString(dbf->GetFqFileName().Str()), NULL);
     }
 
     break;
@@ -118,26 +118,15 @@ int TclDbf::Command (int objc, struct Tcl_Obj * const objv[])
       Tcl_WrongNumArgs(interp, 2, objv, "filename ?alias?");
       return TCL_ERROR;
     } else {
-      int rc;
-      char * filename;
-      Tcl_DString s;
-    
-      filename = Tcl_TranslateFileName(interp, Tcl_GetString(objv[2]), &s);
-      if (filename == NULL) {
-        return TCL_ERROR;
-      }
-    
-      rc = dbf->Close();
+      int rc = dbf->Close();
       if (rc == XB_NO_ERROR) {
-        rc = dbf->Open(filename, (objc == 4) ? Tcl_GetString(objv[3]) : Tcl_GetString(objv[2]));
+        rc = dbf->Open(DecodeTclString(Tcl_GetString(objv[2])),
+          (objc == 4) ? Tcl_GetString(objv[3]) : Tcl_GetString(objv[2]));
       }
-
-      Tcl_DStringFree(&s);
-
       if (CheckRC(rc) != TCL_OK) {
         return TCL_ERROR;
       }
-      Tcl_AppendResult(interp, (const char *)dbf->GetFqFileName(), NULL);
+      Tcl_AppendResult(interp, EncodeTclString(dbf->GetFqFileName().Str()), NULL);
     }
 
     break;
@@ -314,10 +303,8 @@ int TclDbf::Command (int objc, struct Tcl_Obj * const objv[])
         if (CheckRC(dbf->GetFieldName(i,name)) != TCL_OK) {
           return TCL_ERROR;
         } else {
-          Tcl_ListObjAppendElement
-            (NULL, result, 
-             Tcl_NewStringObj(EncodeTclString(name.Str()), -1));
-          }
+          Tcl_ListObjAppendElement(NULL, result, Tcl_NewStringObj(EncodeTclString(name.Str()), -1));
+        }
       }
     } else if (Fields(Tcl_GetObjResult(interp), objv[2], (objc == 4) ? objv[3] : NULL) != TCL_OK) {
       return TCL_ERROR;
@@ -495,11 +482,11 @@ int TclDbf::Command (int objc, struct Tcl_Obj * const objv[])
 
 int TclDbf::Index (int objc, struct Tcl_Obj * const objv[]) {
   static const char *const commands[] = {
-    "create", "drop", "open", "close", "list", "check", "reindex", "current", "name", "type",
-    "first",  "last", "prev", "next", "find", 0L
+    "create", "drop", "open", "close", "files", "tags", "check", "reindex", "file", "tag", "info",
+    "first",  "last", "prev", "next",  "find",  0L
   };
   enum commands {
-    cmCreate, cmDrop, cmOpen, cmClose, cmList, cmCheck, cmReindex, cmCurrent, cmName, cmType,
+    cmCreate, cmDrop, cmOpen, cmClose, cmFiles, cmTags, cmCheck, cmReindex, cmFile, cmTag, cmInfo,
     cmFirst,  cmLast, cmPrev, cmNext,  cmFind
   };
   int index;
@@ -510,7 +497,7 @@ int TclDbf::Index (int objc, struct Tcl_Obj * const objv[]) {
   }
   
   if (Tcl_GetIndexFromObj(interp, objv[2], 
-                          (const char **)commands, "command", 0, &index) != TCL_OK) {
+      (const char **)commands, "command", 0, &index) != TCL_OK) {
     return TCL_ERROR;
   }
 
@@ -573,10 +560,7 @@ int TclDbf::Index (int objc, struct Tcl_Obj * const objv[]) {
           }
         }
 
-        if (Tcl_TranslateFileName(interp, Tcl_GetString(objv[objc - 1]), &ixname) == NULL) {
-          return TCL_ERROR;
-        }
-        
+        Tcl_UtfToExternalDString(Encoding(), Tcl_GetString(objv[objc - 1]), -1, &ixname);
         Tcl_UtfToExternalDString(Encoding(), Tcl_GetString(objv[objc - 2]), -1, &expr);
 
         xbIx *ix = NULL;
@@ -605,23 +589,14 @@ int TclDbf::Index (int objc, struct Tcl_Obj * const objv[]) {
       } else {
         const char * ixtype = "MDX";
         if (objc == 5) {
-          if (strcmp(Tcl_GetString(objv[4]), "-ndx") == 0) {
+          if (strcmp(Tcl_GetString(objv[3]), "-ndx") == 0) {
             ixtype = "NDX";
-          } else if (strcmp(Tcl_GetString(objv[4]), "-mdx") != 0) {
+          } else if (strcmp(Tcl_GetString(objv[3]), "-mdx") != 0) {
             Tcl_AppendResult(interp, "invalid index type", NULL);
             return TCL_ERROR;
           }
         }
-
-        Tcl_DString ixname;
-        Tcl_DStringInit(&ixname);
-        if (Tcl_TranslateFileName(interp, Tcl_GetString(objv[3]), &ixname) == NULL) {
-          return TCL_ERROR;
-        }
-        int rc = dbf->DeleteTag(ixtype, Tcl_DStringValue(&ixname));
-        Tcl_DStringFree(&ixname);
-
-        if (CheckRC(rc) != TCL_OK) {
+        if (CheckRC(dbf->DeleteTag(ixtype, DecodeTclString(Tcl_GetString(objv[3])))) != TCL_OK) {
           return TCL_ERROR;
         }
       }
@@ -636,34 +611,63 @@ int TclDbf::Index (int objc, struct Tcl_Obj * const objv[]) {
       } else {
         const char * ixtype = "MDX";
         if (objc == 5) {
-          if (strcmp(Tcl_GetString(objv[4]), "-ndx") == 0) {
+          if (strcmp(Tcl_GetString(objv[3]), "-ndx") == 0) {
             ixtype = "NDX";
-          } else if (strcmp(Tcl_GetString(objv[4]), "-mdx") != 0) {
+          } else if (strcmp(Tcl_GetString(objv[3]), "-mdx") != 0) {
             Tcl_AppendResult(interp, "invalid index type", NULL);
             return TCL_ERROR;
           }
         }
-
-        Tcl_DString ixname;
-        Tcl_DStringInit(&ixname);
-        if (Tcl_TranslateFileName(interp, Tcl_GetString(objv[objc - 1]), &ixname) == NULL) {
+        if (CheckRC(dbf->OpenIndex(ixtype, DecodeTclString(Tcl_GetString(objv[objc - 1])))) != TCL_OK) {
           return TCL_ERROR;
         }
-        int rc = dbf->OpenIndex(ixtype, Tcl_DStringValue(&ixname));
-        Tcl_DStringFree(&ixname);
-
-        if (CheckRC(rc) != TCL_OK) {
-          return TCL_ERROR;
-        }
-
         Tcl_AppendResult(interp, (const char *)dbf->GetCurIx()->GetFqFileName().Str(), NULL);
       }
       break;
 
-    case cmList:
+    case cmClose:
+
+      // obj index close ixname
+      if (objc != 4) {
+        Tcl_WrongNumArgs(interp, 3, objv, "indexname");
+        return TCL_ERROR;
+      } else {
+        const char * ixname = Tcl_GetString(objv[3]);
+        xbIxList *node = dbf->GetIxList();
+        while (node) {
+          xbIx *ix = node->ix;
+          if (strcmp(ixname, EncodeTclString(ix->GetFqFileName().Str())) == 0) {
+            return CheckRC(dbf->CloseIndexFile(ix));
+          }
+          node = node->next;
+        }
+        Tcl_AppendResult(interp, "unknown index name", NULL);
+        return TCL_ERROR;
+      }
+      break;
+
+    case cmFiles:
 
       if (objc != 3) {
-        Tcl_WrongNumArgs(interp, 2, objv, NULL);
+        Tcl_WrongNumArgs(interp, 3, objv, NULL);
+        return TCL_ERROR;
+      } else {
+        Tcl_Obj * list = Tcl_NewObj();
+        xbIxList *node = dbf->GetIxList();
+        while (node) {
+          xbIx *ix = node->ix;
+          Tcl_ListObjAppendElement(NULL, list,
+            Tcl_NewStringObj(EncodeTclString(ix->GetFqFileName().Str()), -1));
+          node = node->next;
+        }
+        Tcl_SetObjResult(interp, list);
+      }
+      break;
+
+    case cmTags:
+
+      if (objc != 3) {
+        Tcl_WrongNumArgs(interp, 3, objv, NULL);
         return TCL_ERROR;
       } else {
         Tcl_Obj * list = Tcl_NewObj();
@@ -674,11 +678,12 @@ int TclDbf::Index (int objc, struct Tcl_Obj * const objv[]) {
             Tcl_NewStringObj(EncodeTclString(tag->GetTagName().Str()), -1));
           node = node->GetNextNode();
         }
-        Tcl_ListObjAppendElement(NULL, Tcl_GetObjResult(interp), list);
+        Tcl_SetObjResult(interp, list);
       }
       break;
 
     default:
+
       return TCL_ERROR;
 
   } // switch index
@@ -766,24 +771,12 @@ int TclDbf::Create (Tcl_Obj * filename, Tcl_Obj * alias, Tcl_Obj * schema, int o
                (int)(xschema[i].iNoOfDecs));
     }
     memset(&(xschema[fieldc]), 0, sizeof(xbSchema));
-
     {
-      Tcl_DString s;
-      char * xfilename = Tcl_TranslateFileName(interp, Tcl_GetString(filename), &s);
-      char * xalias = alias ? Tcl_GetString(alias) : NULL;
-    
-      if (xfilename == NULL) {
-        Tcl_Free((char *)xschema);
-        return TCL_ERROR;
-      }
-
       int rc = dbf->Close();
       if (rc == XB_NO_ERROR) {
-        rc = dbf->CreateTable(xfilename, xalias, xschema, overlay, share);
+        rc = dbf->CreateTable(DecodeTclString(Tcl_GetString(filename)),
+          alias ? Tcl_GetString(alias) : NULL, xschema, overlay, share);
       }
-
-      Tcl_DStringFree(&s);
-
       if (CheckRC(rc) != TCL_OK) {
         Tcl_Free((char *)xschema);
         return TCL_ERROR;
@@ -995,3 +988,4 @@ int TclDbf::Fields (Tcl_Obj * result, Tcl_Obj * namev, Tcl_Obj * valuev)
   
   return TCL_OK;
 }
+

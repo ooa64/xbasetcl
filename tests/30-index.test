@@ -24,7 +24,7 @@ xbase log string "START [info script]"
 
 test index-1.0 "index syntax" -setup testd_setup4 -body {
     testd index foo
-} -cleanup testd_cleanup -returnCodes 1 -result "bad command \"foo\": must be create, drop, open, close, list, check, reindex, current, name, type, first, last, prev, next, or find"
+} -cleanup testd_cleanup -returnCodes 1 -result "bad command \"foo\": must be create, drop, open, close, files, tags, check, reindex, file, tag, info, first, last, prev, next, or find"
 
 test index-1.1.0 "index create syntax" -setup testd_setup4 -body {
     testd index create
@@ -32,7 +32,7 @@ test index-1.1.0 "index create syntax" -setup testd_setup4 -body {
 
 test index-1.1.1 "index create on unopen dbf" -setup testd_setup4 -body {
     testd index create "F" testi
-} -cleanup testd_cleanup -returnCodes 1 -result "Lock Failed"
+} -cleanup testd_cleanup -returnCodes 1 -result "Database not open"
 
 test index-1.1.2 "index create simple" -setup {
     testd_setup4
@@ -45,7 +45,7 @@ test index-1.1.2.ndx "index create simple ndx" -setup {
     testd_setup4
     testd create {{F N 10 0}} [test_path tmp testd.dbf] testd
 } -body {
-    testd index create -ndx -ndx -ndx "F" [test_path tmp testi.ndx]
+    testd index create -ndx "F" [test_path tmp testi.ndx]
 } -cleanup testd_cleanup -result [test_path tmp testi.ndx]
 
 test index-1.1.3 "index create simple check file" -setup {
@@ -64,21 +64,32 @@ test index-1.1.3.ndx "index create simple check ndx file" -setup {
    file exists [test_path tmp testi.ndx]
 } -cleanup testd_cleanup -result 1
 
+test index-1.1.3.intl "index create simple intl" -setup {
+    testd_setup4
+    testd create {{F N 10 0}} [test_path tmp testd.dbf] testd
+    testd index create -ndx "F" [test_path tmp тесті.ndx]
+} -body {
+   file exists [test_path tmp тесті.ndx]
+} -cleanup {
+   testd_cleanup
+   file delete [test_path tmp тесті.ndx]
+} -result 1
+
 test index-1.2 "index list" -setup {
     testd_setup4
     testd create {{F N 10 0}} [test_path tmp testd.dbf] testd
     testd index create "F" testi
 } -body {
-    testd index list
-} -cleanup testd_cleanup -result {testi}
+    list [testd index files] [testd index tags]
+} -cleanup testd_cleanup -result [list [list [test_path tmp testd.MDX]] [list testi]]
 
 test index-1.2.ndx "index ndx list" -setup {
     testd_setup4
     testd create {{F N 10 0}} [test_path tmp testd.dbf] testd
     testd index create -ndx "F" [test_path tmp testi.ndx]
 } -body {
-    testd index list
-} -cleanup testd_cleanup -result testi
+    list [testd index files] [testd index tags]
+} -cleanup testd_cleanup -result [list [list [test_path tmp testi.ndx]] [list testi]]
 
 test index-1.3.0 "index drop syntax" -setup testd_setup4 -body {
     testd index drop foo testi
@@ -88,7 +99,7 @@ test index-1.3.1 "index drop unopen dbf" -setup {
     testd_setup4
 } -body {
     testd index drop testi
-} -cleanup testd_cleanup -returnCodes {0 1} -result "Lock Failed"
+} -cleanup testd_cleanup -returnCodes {0 1} -result "Database not open"
 
 test index-1.3.2 "index drop unopen ix" -setup {
     testd_setup4
@@ -112,6 +123,62 @@ test index-1.3.3.ndx "index ndx drop" -setup {
 } -body {
    list [testd index drop testi] [file exists [test_path tmp testi.ndx]]
 } -cleanup testd_cleanup -result {{} 0}
+
+test index-1.4.1 "index autoopen" -setup {
+    set f [test_path tmp testd.dbf]
+    testd_setup4
+    testd create {{F N 10 0}} $f testd
+    testd index create "F" testi
+    testd close
+    rename testd {}
+    xbase dbf -dbf4 testd
+    testd open $f testd
+} -body {
+    list [testd index files] [testd index tags]
+} -cleanup testd_cleanup -result [list [list [test_path tmp testd.MDX]] [list testi]]
+
+test index-1.4.2 "index close" -setup {
+    set f [test_path tmp testd.dbf]
+    testd_setup4
+    testd create {{F N 10 0}} $f testd
+    testd index create "F" testi
+    testd close
+    rename testd {}
+    xbase dbf -dbf4 testd
+    testd open $f testd
+} -body {
+    list \
+	[testd index close [test_path tmp testd.MDX]] \
+	[testd index files] \
+	[testd index tags]
+} -cleanup testd_cleanup -result {{} {} {}}
+
+test index-1.4.3 "index close/open" -setup {
+    set f [test_path tmp testd.dbf]
+    testd_setup4
+    testd create {{F N 10 0}} $f testd
+    testd index create "F" testi
+    testd close
+    rename testd {}
+    xbase dbf -dbf4 testd
+    testd open $f testd
+    testd index close [test_path tmp testd.MDX]
+} -body {
+    list [testd index open [test_path tmp testd.MDX]] [testd index files] [testd index tags]
+} -cleanup testd_cleanup -result [list [test_path tmp testd.MDX] [list [test_path tmp testd.MDX]] [list testi]]
+
+test index-1.4.4 "index duplicate open" -setup {
+    set f [test_path tmp testd.dbf]
+    testd_setup4
+    testd create {{F N 10 0}} $f testd
+    testd index create "F" testi
+    testd close
+    rename testd {}
+    xbase dbf -dbf4 testd
+    testd open $f testd
+} -body {
+    list [testd index open [test_path tmp testd.MDX]] [testd index files] [testd index tags]
+} -cleanup testd_cleanup -result [list [test_path tmp testd.MDX] [list [test_path tmp testd.MDX]] [list testi]]
 
 xbase log string "STOP [info script]"
 xbase log enabled 0

@@ -35,7 +35,7 @@ int TclXbase::Command (int objc, struct Tcl_Obj * CONST objv[])
   }
   
   if (Tcl_GetIndexFromObj(interp, objv[1], 
-                          (CONST char **)commands, "command", 0, &index) != TCL_OK) {
+    (CONST char **)commands, "command", 0, &index) != TCL_OK) {
     return TCL_ERROR;
   }
 
@@ -133,13 +133,11 @@ int TclXbase::Command (int objc, struct Tcl_Obj * CONST objv[])
       return TCL_ERROR;
     } else {
       xbDbf * dbf;
-      Tcl_DString s;
-      if (CheckRC(xbase->OpenHighestVersion(Tcl_TranslateFileName(interp, Tcl_GetString(objv[2]), &s), 
+      if (CheckRC(xbase->OpenHighestVersion(Tcl_GetString(objv[2]), 
           (objc == 5) ? Tcl_GetString(objv[4]) : Tcl_GetString(objv[2]), &dbf)) != TCL_OK) {
-        Tcl_DStringFree(&s);
         return TCL_ERROR;
       }
-      DEBUGLOG("TclXbase cmOpen " << Tcl_DStringValue(&s) << " as " << dbf->GetVersion());
+      DEBUGLOG("TclXbase cmOpen " << Tcl_GetString(objv[2]) << " as " << dbf->GetVersion());
       if (dynamic_cast<xbDbf3*>(dbf)) {
         (void) new TclDbf3(interp, Tcl_GetString(objv[3]), this, dynamic_cast<xbDbf3*>(dbf));
       } else if (dynamic_cast<xbDbf4*>(dbf)) {
@@ -147,11 +145,9 @@ int TclXbase::Command (int objc, struct Tcl_Obj * CONST objv[])
       } else {
         delete dbf;
         Tcl_AppendResult(interp, "invalid file version ", Tcl_NewIntObj(dbf->GetVersion()), NULL);
-        Tcl_DStringFree(&s);
         return TCL_ERROR;
       }
       Tcl_SetObjResult(interp, objv[3]);
-      Tcl_DStringFree(&s);
     }
 
     break;
@@ -189,13 +185,7 @@ int TclXbase::Log (int objc, struct Tcl_Obj * CONST objv[])
         return TCL_ERROR;
       }
       if (objc == 4) {
-        Tcl_DString s;
-        char * dirname = Tcl_TranslateFileName(interp, Tcl_GetString(objv[3]), &s);
-        if (dirname == NULL) {
-          return TCL_ERROR;
-        }
-        xbase->SetLogDirectory(dirname);
-        Tcl_DStringFree(&s);
+        xbase->SetLogDirectory(Tcl_GetString(objv[3]));
       }
       Tcl_AppendResult(interp, xbase->GetLogDirectory().Str(), NULL);
       break;
@@ -206,13 +196,7 @@ int TclXbase::Log (int objc, struct Tcl_Obj * CONST objv[])
         return TCL_ERROR;
       }
       if (objc == 4) {
-        Tcl_DString s;
-        char * filename = Tcl_TranslateFileName(interp, Tcl_GetString(objv[3]), &s);
-        if (filename == NULL) {
-          return TCL_ERROR;
-        }
-        xbase->SetLogFileName(filename);
-        Tcl_DStringFree(&s);
+        xbase->SetLogFileName(Tcl_GetString(objv[3]));
       }
       Tcl_AppendResult(interp, xbase->GetLogFileName().Str(), NULL);
       break;

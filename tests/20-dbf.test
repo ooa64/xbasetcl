@@ -14,6 +14,45 @@ proc testd_cleanup {} {
     foreach x {dbf dbt} {file delete [test_path tmp testd.$x]}
 }
 
+set schema3 [lrange {
+    {F1 C 10 0}
+    {F2 L 1 0}
+    {F3 N 10 0}
+    {F4 D 8 0}
+} 0 end]
+
+set records3 [lrange {
+    {1st T 11 20010101}
+    {2nd F 22 20020202}
+    {3rd ? 33 20030303}
+} 0 end]
+
+set schema4 [lrange {
+    {F1 C 10 0}
+    {F2 L 1 0}
+    {F3 N 10 0}
+    {F4 D 8 0}
+    {F5 F 10 2}
+} 0 end]
+
+set records4 [lrange {
+    {1st T 11 20010101 11.11}
+    {2nd F 22 20020202 22.22}
+    {3rd ? 33 20030303 33.33}
+} 0 end]
+
+set schema_memo [lrange {
+    {F1 C 10 0}
+    {F2 M 10 0}
+} 0 end]
+
+set records_memo [lrange {
+    {1st {}}
+    {2nd {This is a second record}}
+    {3nd {}}
+    {4nd {This is a last record}}
+} 0 end]
+
 set xbaseLogEnabled [xbase log enabled]
 set xbaseLogDirectory [xbase log directory]
 set xbaseLogName [xbase log name]
@@ -61,7 +100,7 @@ foreach v {3 4} {
         next        0 "0" \
         position    0 "0" \
         size        1 "Database not open" \
-        index       1 "wrong # args: should be \"testd index ?-ndx|-mdx? name\"" \
+        index       1 "wrong # args: should be \"testd index command\"" \
         filter      1 "wrong # args: should be \"testd filter name expression\"" \
     ] {
 
@@ -197,6 +236,15 @@ foreach v {3 4} {
             [testd status] \
             [file exists [test_path tmp testd.dbf]]
     } -cleanup testd_cleanup -result [list open {} closed 0]
+
+    test dbf-2.2.6.v$v "create dbf intl" -setup testd_setup$v -body {
+        list \
+            [testd create {{F N 10 0}} [test_path tmp עוסעה.dbf] עוסעה] \
+            [file exists [test_path tmp עוסעה.dbf]]
+    } -cleanup {
+        testd_cleanup
+        file delete [test_path tmp עוסעה.dbf]
+    } -result [list [test_path tmp עוסעה.dbf] 1]
 
     unset v
 }
@@ -481,20 +529,20 @@ foreach v {3 4} {
     } -body {
         testd field F1 bla
         testd commit
-        list [testd size] [testd pos] [testd record]
-    } -cleanup testd_cleanup -result {1 1 {bla {} {} {} {}}}
+        list [testd size] [testd pos] [lindex [testd record] 0]
+    } -cleanup testd_cleanup -result {1 1 bla}
 
     test dbf-2.5.6.v$v "simple append" -setup {
         testd_setup$v
         testd create [set schema$v] [test_path tmp testd.dbf] testd
     } -body {
-        lmap i $records {testd append $i}
-    } -cleanup testd_cleanup -result $records
+        lmap i [set records$v] {testd append $i}
+    } -cleanup testd_cleanup -result [set records$v]
 
     test dbf-2.5.7.v$v "read records using fields" -setup {
         testd_setup$v
         testd create [set schema$v] [test_path tmp testd.dbf] testd
-        lmap i $records {testd append $i}
+        lmap i [set records$v] {testd append $i}
     } -body {
         set result {}
         testd blank
@@ -502,12 +550,12 @@ foreach v {3 4} {
             lappend result [testd fields [testd fields]]
         }
         set result
-    } -cleanup testd_cleanup -result $records
+    } -cleanup testd_cleanup -result [set records$v]
 
     test dbf-2.5.8.v$v "read records using field by field" -setup {
         testd_setup$v
         testd create [set schema$v] [test_path tmp testd.dbf] testd
-        lmap i $records {testd append $i}
+        lmap i [set records$v] {testd append $i}
     } -body {
         set result {}
         testd blank
@@ -519,7 +567,7 @@ foreach v {3 4} {
             lappend result $record
         }
         set result
-    } -cleanup testd_cleanup -result $records
+    } -cleanup testd_cleanup -result [set records$v]
 
     unset v
 }

@@ -34,14 +34,14 @@ public:
     return (encoding ? encoding : ((TclXbase *)pParent)->Encoding());
   };
 
-  inline CONST char * EncodeTclString(CONST char * s) {
+  inline const char * EncodeTclString(const char * s) {
     // make Tcl string from C string
     Tcl_DStringFree(&dstring);
     Tcl_ExternalToUtfDString(Encoding(), s, -1, &dstring);
     return Tcl_DStringValue(&dstring);
   };
 
-  inline CONST char * DecodeTclString(CONST char * s) {
+  inline const char * DecodeTclString(const char * s) {
     // make C string from Tcl string
     Tcl_DStringFree(&dstring);
     Tcl_UtfToExternalDString(Encoding(), s, -1, &dstring);
@@ -67,9 +67,9 @@ private:
   Tcl_DString dstring;
 
   virtual void Cleanup();
-  virtual int Command (int objc, struct Tcl_Obj * CONST objv[]);
+  virtual int Command (int objc, struct Tcl_Obj * const objv[]);
 
-  int Index (int objc, struct Tcl_Obj * CONST objv[]);
+  int Index (int objc, struct Tcl_Obj * const objv[]);
   int Create (Tcl_Obj * filename, Tcl_Obj * alias, Tcl_Obj * schema, int overlay, int share);
   int Schema (Tcl_Obj * result, unsigned include);
   int Fields (Tcl_Obj * result, Tcl_Obj * namev, Tcl_Obj * valuev);
