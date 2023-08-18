@@ -24,7 +24,7 @@ xbase log string "START [info script]"
 
 test index-1.0 "index syntax" -setup testd_setup4 -body {
     testd index foo
-} -cleanup testd_cleanup -returnCodes 1 -result "bad command \"foo\": must be create, drop, open, close, files, tags, check, reindex, file, tag, info, first, last, prev, next, or find"
+} -cleanup testd_cleanup -returnCodes 1 -result "bad command \"foo\": must be create, drop, open, close, check, reindex, files, tags, file, tag, info, first, last, prev, next, or find"
 
 test index-1.1.0 "index create syntax" -setup testd_setup4 -body {
     testd index create
@@ -75,21 +75,33 @@ test index-1.1.3.intl "index create simple intl" -setup {
    file delete [test_path tmp òåñò³.ndx]
 } -result 1
 
-test index-1.2 "index list" -setup {
+test index-1.2 "index info" -setup {
     testd_setup4
     testd create {{F N 10 0}} [test_path tmp testd.dbf] testd
     testd index create "F" testi
 } -body {
-    list [testd index files] [testd index tags]
-} -cleanup testd_cleanup -result [list [list [test_path tmp testd.MDX]] [list testi]]
+    list \
+        [testd index files] \
+        [testd index tags] \
+        [testd index info]
+} -cleanup testd_cleanup -result [list \
+    [list [test_path tmp testd.MDX]] \
+    [list testi] \
+    [list type MDX file [test_path tmp testd.MDX] tag testi expression F filter {} unique 0 descending 0]]
 
-test index-1.2.ndx "index ndx list" -setup {
+test index-1.2.ndx "index ndx info" -setup {
     testd_setup4
     testd create {{F N 10 0}} [test_path tmp testd.dbf] testd
     testd index create -ndx "F" [test_path tmp testi.ndx]
 } -body {
-    list [testd index files] [testd index tags]
-} -cleanup testd_cleanup -result [list [list [test_path tmp testi.ndx]] [list testi]]
+    list \
+        [testd index files] \
+        [testd index tags] \
+        [testd index info]
+} -cleanup testd_cleanup -result [list \
+    [list [test_path tmp testi.ndx]] \
+    [list testi] \
+    [list type NDX file [test_path tmp testi.ndx] tag testi expression F filter {} unique 0 descending 0]]
 
 test index-1.3.0 "index drop syntax" -setup testd_setup4 -body {
     testd index drop foo testi
@@ -179,6 +191,261 @@ test index-1.4.4 "index duplicate open" -setup {
 } -body {
     list [testd index open [test_path tmp testd.MDX]] [testd index files] [testd index tags]
 } -cleanup testd_cleanup -result [list [test_path tmp testd.MDX] [list [test_path tmp testd.MDX]] [list testi]]
+
+test index-1.5.1 "index check mdx" -setup {
+    set f [test_path tmp testd.dbf]
+    testd_setup4
+    testd create {{F N 10 0}} $f testd
+    testd index create "F" testi
+} -body {
+    list [testd index check] [testd index check -all]
+} -cleanup testd_cleanup -result {{} {}}
+
+test index-1.5.2 "index check ndx" -setup {
+    set f [test_path tmp testd.dbf]
+    testd_setup4
+    testd create {{F N 10 0}} $f testd
+    testd index create -ndx "F" [test_path tmp testi.ndx]
+} -body {
+    list [testd index check] [testd index check -all]
+} -cleanup testd_cleanup -result {{} {}}
+
+test index-1.5.3 "index check ndx on dbf3" -setup {
+    set f [test_path tmp testd.dbf]
+    testd_setup3
+    testd create {{F N 10 0}} $f testd
+    testd index create -ndx "F" [test_path tmp testi.ndx]
+} -body {
+    list [testd index check] [testd index check -all]
+} -cleanup testd_cleanup -result {{} {}}
+
+test index-1.5.1 "index reindex mdx" -setup {
+    set f [test_path tmp testd.dbf]
+    testd_setup4
+    testd create {{F N 10 0}} $f testd
+    testd index create "F" testi
+} -body {
+    list [testd index reindex] [testd index reindex -all]
+} -cleanup testd_cleanup -result {{} {}}
+
+test index-1.6.2 "index reindex ndx" -setup {
+    set f [test_path tmp testd.dbf]
+    testd_setup4
+    testd create {{F N 10 0}} $f testd
+    testd index create -ndx "F" [test_path tmp testi.ndx]
+} -body {
+    list [testd index reindex] [testd index reindex -all]
+} -cleanup testd_cleanup -result {{} {}}
+
+test index-1.6.3 "index reindex ndx on dbf3" -setup {
+    set f [test_path tmp testd.dbf]
+    testd_setup3
+    testd create {{F N 10 0}} $f testd
+    testd index create -ndx "F" [test_path tmp testi.ndx]
+} -body {
+    list [testd index reindex] [testd index reindex -all]
+} -cleanup testd_cleanup -result {{} {}}
+
+test index-1.7.1 "index navigation" -setup {
+    set f [test_path tmp testd.dbf]
+    testd_setup4
+    testd create {{F N 10 0}} $f testd
+    testd index create "F" testi
+    testd append 1
+    testd append 2
+    testd append 3
+} -body {
+    list \
+        [testd index first] \
+        [testd index next] \
+        [testd index next] \
+        [testd index next] \
+        [testd index last] \
+        [testd index prev] \
+        [testd index prev] \
+        [testd index prev]
+} -cleanup testd_cleanup -result {1 2 3 0 3 2 1 0}
+
+test index-1.7.2 "index navigation descending" -setup {
+    set f [test_path tmp testd.dbf]
+    testd_setup4
+    testd create {{F N 10 0}} $f testd
+    testd index create -descending "F" testi
+    testd append 1
+    testd append 2
+    testd append 3
+} -body {
+    list \
+        [testd index first] \
+        [testd index next] \
+        [testd index next] \
+        [testd index next] \
+        [testd index last] \
+        [testd index prev] \
+        [testd index prev] \
+        [testd index prev]
+} -cleanup testd_cleanup -result {3 2 1 0 1 2 3 0}
+
+test index-1.7.3 "index navigation eages" -setup {
+    set f [test_path tmp testd.dbf]
+    testd_setup4
+    testd create {{F N 10 0}} $f testd
+    testd index create "F" testi
+    testd append 1
+    testd append 2
+    testd append 3
+} -body {
+    list \
+        [testd index next] \
+        [testd index last] \
+        [testd index next] \
+        [testd pos] \
+        [testd index first] \
+        [testd index prev] \
+        [testd pos]
+} -cleanup testd_cleanup -result {1 3 0 3 1 0 1}
+
+test index-1.7.4 "index navigated records" -setup {
+    set f [test_path tmp testd.dbf]
+    testd_setup4
+    testd create {{F N 10 0}} $f testd
+    testd index create "F" testi
+    testd append 10
+    testd append 20
+    testd append 30
+} -body {
+    list \
+        [testd index first] [testd record] \
+        [testd index next] [testd record] \
+        [testd index next] [testd record] \
+        [testd index next] [testd record] [testd pos]
+} -cleanup testd_cleanup -result {1 10 2 20 3 30 0 30 3}
+
+test index-1.8.1 "duplicate tags" -setup {
+    set f [test_path tmp testd.dbf]
+    testd_setup4
+    testd create {{F1 N 10 0} {F2 N 10 0}} $f testd
+    testd index create "F1" testi
+} -body {
+    testd index create "F2" testi
+} -cleanup testd_cleanup -returnCodes 1 -result {Invalid index tag}
+
+test index-1.8.2 "two tags info" -setup {
+    set f [test_path tmp testd.dbf]
+    testd_setup4
+    testd create {{F1 N 10 0} {F2 N 10 0}} $f testd
+    testd index create "F1" test1
+    testd index create "F2" test2
+} -body {
+    list [testd index files] [testd index tags]
+} -cleanup testd_cleanup -result [list [list [test_path tmp testd.MDX]] [list test1 test2]]
+
+test index-1.8.3 "switch tags" -setup {
+    set f [test_path tmp testd.dbf]
+    testd_setup4
+    testd create {{F1 N 10 0} {F2 N 10 0}} $f testd
+    testd index create "F1" test1
+    testd index create "F2" test2
+} -body {
+    list [testd index tag] [testd index tag test2] [testd index tag]
+} -cleanup testd_cleanup -result {test1 test2 test2}
+
+test index-1.8.3 "switch tags navigation" -setup {
+    set f [test_path tmp testd.dbf]
+    testd_setup4
+    testd create {{F1 N 10 0} {F2 N 10 0}} $f testd
+    testd index create "F1" test1
+    testd index create "F2" test2
+    testd append {10 300}
+    testd append {20 200}
+    testd append {30 100}
+} -body {
+    list \
+        [testd index tag test1] [testd index first] [testd index next] \
+        [testd index tag test2] [testd index first] [testd index next] \
+} -cleanup testd_cleanup -result {test1 1 2 test2 3 2}
+
+test index-1.8.4 "switch tags on the fly" -setup {
+    set f [test_path tmp testd.dbf]
+    testd_setup4
+    testd create {{F1 N 10 0} {F2 N 10 0}} $f testd
+    testd index create "F1" test1
+    testd index create "F2" test2
+    testd append {10 300}
+    testd append {20 200}
+    testd append {30 100}
+} -body {
+    testd pos 2
+    list \
+        [testd index tag test1] [testd index next] \
+        [testd index tag test2] [testd index next]
+} -cleanup testd_cleanup -result {test1 1 test2 3}
+
+test index-1.9.1 "index search string" -setup {
+    set f [test_path tmp testd.dbf]
+    testd_setup4
+    testd create {{F C 10 0}} $f testd
+    testd index create "F" testi
+    testd append 1
+    testd append 2
+    testd append 3
+} -body {
+    list \
+        [testd index find 1] \
+        [testd index find 2] \
+        [testd index find 3] \
+        [testd index find 4] \
+        [testd index find x] \
+        [testd pos]
+} -cleanup testd_cleanup -result {1 2 3 0 0 3}
+
+test index-1.9.2 "index number search" -setup {
+    set f [test_path tmp testd.dbf]
+    testd_setup4
+    testd create {{F N 10 0}} $f testd
+    testd index create "F" testi
+    testd append 1
+} -body {
+    list \
+        [testd index find 1] \
+        [testd pos]
+} -cleanup testd_cleanup -result {1 1}
+
+test index-1.9.3 "index invalid number search" -setup {
+    set f [test_path tmp testd.dbf]
+    testd_setup4
+    testd create {{F N 10 0}} $f testd
+    testd index create "F" testi
+    testd append 1
+} -body {
+    list \
+        [testd index find x] \
+        [testd pos]
+} -cleanup testd_cleanup -returnCodes 1 -result {expected floating-point number but got "x"}
+
+test index-1.9.4 "index date search" -setup {
+    set f [test_path tmp testd.dbf]
+    testd_setup4
+    testd create {{F D 8 0}} $f testd
+    testd index create "F" testi
+    testd append "20010101"
+} -body {
+    list \
+        [testd index find "20010101"] \
+        [testd pos]
+} -cleanup testd_cleanup -result {1 1}
+
+test index-1.9.5 "index invalid date search" -setup {
+    set f [test_path tmp testd.dbf]
+    testd_setup4
+    testd create {{F D 8 0}} $f testd
+    testd index create "F" testi
+    testd append "20010101"
+} -body {
+    list \
+        [testd index find x] \
+        [testd pos]
+} -cleanup testd_cleanup -returnCodes 1 -result {expected date as YYYYMMDD but got "x"}
 
 xbase log string "STOP [info script]"
 xbase log enabled 0

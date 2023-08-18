@@ -26,7 +26,7 @@ void TclDbf::Cleanup () {
 int TclDbf::Command (int objc, struct Tcl_Obj * const objv[])
 {
   static const char *commands[] = {
-    "create", "drop",   "open",   "close",   "pack",   "zap",      
+    "create", "drop",   "open",    "close",  "pack",     "zap",      
     "name",   "alias",  "version", "status", "schema",   "autocommit", "encoding",
     "blank",  "fields", "record",  "append", "update",   "deleted",    "commit",   "abort",
     "first",  "last",   "prev",    "next",   "position", "size",
@@ -34,7 +34,7 @@ int TclDbf::Command (int objc, struct Tcl_Obj * const objv[])
     0L
   };
   enum commands {
-    cmCreate, cmDrop,   cmOpen,   cmClose,   cmPack,   cmZap,
+    cmCreate, cmDrop,   cmOpen,    cmClose,  cmPack,     cmZap,
     cmName,   cmAlias,  cmVersion, cmStatus, cmSchema,   cmAutocommit, cmEncoding,
     cmBlank,  cmFields, cmRecord,  cmAppend, cmUpdate,   cmDeleted,    cmCommit,   cmAbort,
     cmFirst,  cmLast,   cmPrev,    cmNext,   cmPosition, cmSize,
@@ -319,8 +319,7 @@ int TclDbf::Command (int objc, struct Tcl_Obj * const objv[])
     if (objc > 3) {
       Tcl_WrongNumArgs(interp, 2, objv, "?values?");
       return TCL_ERROR;
-    } else if (Fields(Tcl_GetObjResult(interp), \
-                      NULL, (objc == 3) ? objv[2] : NULL) != TCL_OK) {
+    } else if (Fields(Tcl_GetObjResult(interp), NULL, (objc == 3) ? objv[2] : NULL) != TCL_OK) {
       return TCL_ERROR;
     }
     // NOTE: xbase64-4.1.4 crashes updating unopened dbf
@@ -482,11 +481,13 @@ int TclDbf::Command (int objc, struct Tcl_Obj * const objv[])
 
 int TclDbf::Index (int objc, struct Tcl_Obj * const objv[]) {
   static const char *const commands[] = {
-    "create", "drop", "open", "close", "files", "tags", "check", "reindex", "file", "tag", "info",
+    "create", "drop", "open", "close", "check", "reindex",
+    "files",  "tags", "file", "tag",   "info",
     "first",  "last", "prev", "next",  "find",  0L
   };
   enum commands {
-    cmCreate, cmDrop, cmOpen, cmClose, cmFiles, cmTags, cmCheck, cmReindex, cmFile, cmTag, cmInfo,
+    cmCreate, cmDrop, cmOpen, cmClose, cmCheck, cmReindex,
+    cmFiles,  cmTags, cmFile, cmTag,   cmInfo,
     cmFirst,  cmLast, cmPrev, cmNext,  cmFind
   };
   int index;
@@ -633,7 +634,7 @@ int TclDbf::Index (int objc, struct Tcl_Obj * const objv[]) {
         return TCL_ERROR;
       } else {
         const char * ixname = Tcl_GetString(objv[3]);
-        xbIxList *node = dbf->GetIxList();
+        xbIxList * node = dbf->GetIxList();
         while (node) {
           xbIx *ix = node->ix;
           if (strcmp(ixname, EncodeTclString(ix->GetFqFileName().Str())) == 0) {
@@ -646,6 +647,50 @@ int TclDbf::Index (int objc, struct Tcl_Obj * const objv[]) {
       }
       break;
 
+    case cmCheck:
+
+      // obj index check ?-all?
+      if (objc > 4) {
+        Tcl_WrongNumArgs(interp, 3, objv, "?-all?");
+        return TCL_ERROR;
+      } else {
+        int opt = 0;
+        if (objc == 4) {
+          opt = 1;
+          if (strcmp(Tcl_GetString(objv[3]), "-all") != 0) {
+            Tcl_AppendResult(interp, "invalid option", NULL);
+            return TCL_ERROR;
+          }
+        }
+        if (CheckRC(dbf->CheckTagIntegrity(opt, 2)) != TCL_OK) {
+          return TCL_ERROR;
+        }
+      }
+      break;
+
+    case cmReindex:
+
+      // obj index reindex ?-all?
+      if (objc > 4) {
+        Tcl_WrongNumArgs(interp, 3, objv, "?-all?");
+        return TCL_ERROR;
+      } else {
+        int opt = 0;
+        if (objc == 4) {
+          opt = 1;
+          if (strcmp(Tcl_GetString(objv[3]), "-all") != 0) {
+            Tcl_AppendResult(interp, "invalid option", NULL);
+            return TCL_ERROR;
+          }
+        }
+        xbIx * ix = NULL;
+        void * tag = NULL;
+        if (CheckRC(dbf->Reindex(opt, 1, &ix, &tag)) != TCL_OK) {
+          return TCL_ERROR;
+        }
+      }
+      break;
+
     case cmFiles:
 
       if (objc != 3) {
@@ -655,7 +700,7 @@ int TclDbf::Index (int objc, struct Tcl_Obj * const objv[]) {
         Tcl_Obj * list = Tcl_NewObj();
         xbIxList *node = dbf->GetIxList();
         while (node) {
-          xbIx *ix = node->ix;
+          xbIx * ix = node->ix;
           Tcl_ListObjAppendElement(NULL, list,
             Tcl_NewStringObj(EncodeTclString(ix->GetFqFileName().Str()), -1));
           node = node->next;
@@ -673,12 +718,136 @@ int TclDbf::Index (int objc, struct Tcl_Obj * const objv[]) {
         Tcl_Obj * list = Tcl_NewObj();
         xbLinkListNode<xbTag *> * node = dbf->GetTagList();
         while (node) {
-          xbTag * tag = node->GetKey();          
+          xbTag * tag = node->GetKey();
           Tcl_ListObjAppendElement(NULL, list,
-            Tcl_NewStringObj(EncodeTclString(tag->GetTagName().Str()), -1));
+              Tcl_NewStringObj(EncodeTclString(tag->GetTagName().Str()), -1));
           node = node->GetNextNode();
         }
         Tcl_SetObjResult(interp, list);
+      }
+      break;
+
+    case cmInfo:
+
+      if (objc != 3) {
+        Tcl_WrongNumArgs(interp, 3, objv, NULL);
+        return TCL_ERROR;
+      } else {
+        xbIx * ix = dbf->GetCurIx();
+        void * tag = dbf->GetCurTag();
+        if (ix != NULL && tag != NULL) {
+          Tcl_Obj * list = Tcl_NewObj();
+          Tcl_ListObjAppendElement(NULL, list, Tcl_NewStringObj("type", -1));
+          // Tcl_ListObjAppendElement(NULL, list, Tcl_NewStringObj(dynamic_cast<xbIxNdx *>(ix) ? "NDX" : "MDX", -1));
+          Tcl_ListObjAppendElement(NULL, list, Tcl_NewStringObj(dbf->GetCurIxType().Str(), -1));
+          Tcl_ListObjAppendElement(NULL, list, Tcl_NewStringObj("file", -1));
+          Tcl_ListObjAppendElement(NULL, list, Tcl_NewStringObj(EncodeTclString(ix->GetFqFileName().Str()), -1));
+          Tcl_ListObjAppendElement(NULL, list, Tcl_NewStringObj("tag", -1));
+          Tcl_ListObjAppendElement(NULL, list, Tcl_NewStringObj(EncodeTclString(ix->GetTagName(tag).Str()), -1));
+          Tcl_ListObjAppendElement(NULL, list, Tcl_NewStringObj("expression", -1));
+          Tcl_ListObjAppendElement(NULL, list, Tcl_NewStringObj(EncodeTclString(ix->GetKeyExpression(tag).Str()), -1));
+          Tcl_ListObjAppendElement(NULL, list, Tcl_NewStringObj("filter", -1));
+          Tcl_ListObjAppendElement(NULL, list, Tcl_NewStringObj(EncodeTclString(ix->GetKeyFilter(tag).Str()), -1));
+          Tcl_ListObjAppendElement(NULL, list, Tcl_NewStringObj("unique", -1));
+          Tcl_ListObjAppendElement(NULL, list, Tcl_NewIntObj(ix->GetUnique(tag)));
+          Tcl_ListObjAppendElement(NULL, list, Tcl_NewStringObj("descending", -1));
+          Tcl_ListObjAppendElement(NULL, list, Tcl_NewIntObj(ix->GetSortOrder(tag)));
+          Tcl_SetObjResult(interp, list);
+        } else {
+          Tcl_AppendResult(interp, "undefined index or tag", NULL);
+          return TCL_ERROR;
+        }
+      }
+      break;
+
+    case cmTag:
+
+      if (objc > 4) {
+        Tcl_WrongNumArgs(interp, 3, objv, "?tag?");
+        return TCL_ERROR;
+      } else {
+        if (objc == 4) {
+          if (CheckRC(dbf->SetCurTag(Tcl_GetString(objv[3]))) != TCL_OK) {
+            return TCL_ERROR;
+          }
+        }
+        Tcl_AppendResult(interp, EncodeTclString(dbf->GetCurTagName().Str()), NULL);
+      }
+      break;
+
+    case cmFirst:
+    case cmLast:
+    case cmPrev:
+    case cmNext:
+
+      if (objc != 3) {
+        Tcl_WrongNumArgs(interp, 3, objv, NULL);
+        return TCL_ERROR;
+      } else {
+        int rc = XB_INVALID_OPTION;
+        switch ((enum commands)(index)) {
+          case cmFirst: rc = dbf->GetFirstKey(); break;
+          case cmLast: rc = dbf->GetLastKey(); break;
+          case cmPrev: rc = dbf->GetPrevKey(); break;
+          case cmNext: rc = dbf->GetNextKey(); break;
+        }
+        if (rc == XB_BOF || rc == XB_EOF) {
+          Tcl_SetObjResult(interp, Tcl_NewIntObj(0));
+        } else if (CheckRC(rc) != TCL_OK) {
+          return TCL_ERROR;
+        } else if (CheckRC(dbf->GetRecord(dbf->GetCurRecNo())) != TCL_OK) {
+          return TCL_ERROR;
+        } else {
+          Tcl_SetObjResult(interp, Tcl_NewIntObj(dbf->GetCurRecNo()));
+        }
+      }
+      break;
+
+    case cmFind:
+
+     if (objc != 4) {
+        Tcl_WrongNumArgs(interp, 4, objv, "value");
+        return TCL_ERROR;
+      } else {
+        xbIx * ix = dbf->GetCurIx();
+        void * tag = dbf->GetCurTag();
+        if (ix != NULL && tag != NULL) {
+          int rc = XB_INVALID_OPTION;
+          switch (ix->GetKeyType(tag)) {
+            case 'F':
+            case 'N':
+              {
+                double value;
+                if (Tcl_GetDouble(interp, Tcl_GetString(objv[3]), &value) != TCL_OK) {
+                  return TCL_ERROR;
+                }
+                rc = dbf->Find(value);
+              }
+              break;
+            case 'D':
+              {
+                xbDate value;
+                if (!value.DateIsValid(Tcl_GetString(objv[3]))) {
+                  Tcl_AppendResult(interp, "expected date as YYYYMMDD but got \"", Tcl_GetString(objv[3]), "\"", NULL);
+                  return TCL_ERROR;
+                }
+                rc = dbf->Find(value);
+              }
+              break;
+            default:
+              {
+                xbString value = DecodeTclString(Tcl_GetString(objv[3]));
+                rc = dbf->Find(value);
+              }
+          }
+          if (rc == XB_NOT_FOUND) {
+            Tcl_SetObjResult(interp, Tcl_NewIntObj(0));
+          } else if (CheckRC(rc) != TCL_OK) {
+            return TCL_ERROR;
+          } else {
+            Tcl_SetObjResult(interp, Tcl_NewIntObj(dbf->GetCurRecNo()));
+          }
+        }
       }
       break;
 
