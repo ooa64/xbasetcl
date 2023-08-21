@@ -826,8 +826,8 @@ int TclDbf::Index (int objc, struct Tcl_Obj * const objv[]) {
               break;
             case 'D':
               {
-                xbDate value;
-                if (!value.DateIsValid(Tcl_GetString(objv[3]))) {
+                xbDate value = Tcl_GetString(objv[3]);
+                if (value.Str() == "") {
                   Tcl_AppendResult(interp, "expected date as YYYYMMDD but got \"", Tcl_GetString(objv[3]), "\"", NULL);
                   return TCL_ERROR;
                 }
