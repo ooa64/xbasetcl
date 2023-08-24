@@ -88,11 +88,11 @@ int TclXbase::Command (int objc, struct Tcl_Obj * CONST objv[])
     } else {
       // TODO: use expressions cache
       xbExp exp(xbase);
-      int rc = exp.ParseExpression(Tcl_GetString(objv[2]));
-      if (rc == XB_NO_ERROR) {
-        if (CheckRC(exp.ProcessExpression()) != TCL_OK) {
-          return TCL_ERROR;
-        }
+      if (CheckRC(exp.ParseExpression(Tcl_GetString(objv[2]))) != TCL_OK) {
+        return TCL_ERROR;
+      } else if (CheckRC(exp.ProcessExpression()) != TCL_OK) {
+        return TCL_ERROR;
+      } else {
         switch (exp.GetReturnType()) {
           case XB_EXP_LOGICAL: {
             xbBool value;

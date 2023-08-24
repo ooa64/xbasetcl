@@ -3,6 +3,16 @@ package require xbasetcl
 
 namespace import tcltest::*
 
+# NOTE: interferation with xbase-5.3
+#set xbaseLogEnabled [xbase log enabled]
+#set xbaseLogDirectory [xbase log directory]
+#set xbaseLogName [xbase log name]
+#xbase log enabled 0
+#xbase log directory [file join [testsDirectory] tmp]
+#xbase log name [file tail [info script]].txt
+#xbase log enabled 1
+#xbase log string "START [info script]"
+
 test xbase-1.0 "syntax" -body {
     xbase foo
 } -returnCodes 1 -result "bad command \"foo\": must be version, dateformat, encoding, expr, list, dbf, open, or log"
@@ -89,17 +99,37 @@ test xbase-4.1 "expr syntax" -body {
     xbase expr
 } -returnCodes 1 -result "wrong # args: should be \"xbase expr expression\""
 
+test xbase-4.2 "expr invalid syntax" -body {
+    xbase expr *
+} -returnCodes 1 -result "Parse Error"
+
 foreach {n e r} {
     1 	{2*2} 			"4.0"
     2	{2=2}			"1"
     3	{{01/02/2000}}		"20000102"
     4	{"foo" + "bar"}		"foobar"
 } {
-    test xbase-4.2.$n "trivial expr" {
+    test xbase-4.3.$n "trivial expr" {
         xbase expr $e
     } $r
     unset n e r
 }
+
+test xbase-4.4 "db field test" -setup {
+    # NOTE: tests hangs on exit when using alias
+    # xbase open [file join [testsDirectory] fixtures dbase_03.dbf] testd testd
+    xbase open [file join [testsDirectory] fixtures dbase_83.dbf] testd
+    testd first
+#puts stderr list:[xbase list]
+#puts stderr schema:[testd schema]
+#puts stderr record:[testd record]
+#puts stderr field:[testd field Type]
+} -body {
+    xbase expr testd->Type
+} -cleanup {
+    testd close
+    rename testd {}
+} -result "CMP"
 
 test xbase-5.1 "log syntax" -body {
     xbase log foo
@@ -141,3 +171,8 @@ test xbase-5.3 "log write/flush" -setup {
     catch {file delete $t/foo}
 } -result {????-??-?? ??:??:?? - bar} -match glob
 
+#xbase log string "STOP [info script]"
+#xbase log enabled 0
+#xbase log name $xbaseLogName
+#xbase log directory $xbaseLogDirectory
+#xbase log enabled $xbaseLogEnabled
