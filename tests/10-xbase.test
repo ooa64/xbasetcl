@@ -5,7 +5,7 @@ namespace import tcltest::*
 
 test xbase-1.0 "syntax" -body {
     xbase foo
-} -returnCodes 1 -result "bad command \"foo\": must be version, dateformat, encoding, log, list, dbf, or open"
+} -returnCodes 1 -result "bad command \"foo\": must be version, dateformat, encoding, expr, list, dbf, open, or log"
 
 test xbase-1.1 "version" {
     xbase version
@@ -85,7 +85,23 @@ foreach {f c r} {
     } -returnCodes $c -result $r
 }
 
-test xbase-4.1 "log syntax" -body {
+test xbase-4.1 "expr syntax" -body {
+    xbase expr
+} -returnCodes 1 -result "wrong # args: should be \"xbase expr expression\""
+
+foreach {n e r} {
+    1 	{2*2} 			"4.0"
+    2	{2=2}			"1"
+    3	{{01/02/2000}}		"20000102"
+    4	{"foo" + "bar"}		"foobar"
+} {
+    test xbase-4.2.$n "trivial expr" {
+        xbase expr $e
+    } $r
+    unset n e r
+}
+
+test xbase-5.1 "log syntax" -body {
     xbase log foo
 } -returnCodes 1 -result "bad command \"foo\": must be directory, name, size, enabled, string, bytes, or flush"
 
@@ -97,7 +113,7 @@ foreach {o v} {
 } {
     set d [xbase log $o]
 
-    test xbase-4.2.$o "log command $o" {
+    test xbase-5.2.$o "log command $o" {
         list [xbase log $o $v] [xbase log $o]
     } [list $v $v]
 
@@ -105,7 +121,7 @@ foreach {o v} {
     unset o v d
 }
 
-test xbase-4.3 "log write/flush" -setup {
+test xbase-5.3 "log write/flush" -setup {
     set t [file join [testsDirectory] tmp]
     set e [xbase log enabled]
     set d [xbase log directory]

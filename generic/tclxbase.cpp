@@ -22,10 +22,10 @@ void TclXbase::Cleanup () {
 int TclXbase::Command (int objc, struct Tcl_Obj * CONST objv[])
 {
   static CONST char *commands[] = {
-    "version", "dateformat", "encoding", "log", "list", "dbf", "open", 0L
+    "version", "dateformat", "encoding", "expr", "list", "dbf", "open", "log", 0L
   };
   enum commands {
-    cmVersion, cmDateformat, cmEncoding, cmLog, cmList, cmDbf, cmOpen
+    cmVersion, cmDateformat, cmEncoding, cmExpr, cmList, cmDbf, cmOpen, cmLog
   };
   int index;
 
@@ -78,6 +78,49 @@ int TclXbase::Command (int objc, struct Tcl_Obj * CONST objv[])
       }
     }
     Tcl_AppendResult(interp, Tcl_GetEncodingName(encoding), NULL);
+
+    break;
+
+  case cmExpr:
+
+    if (objc != 3) {
+      Tcl_WrongNumArgs(interp, 2, objv, "expression");
+      return TCL_ERROR;
+    } else {
+      // TODO: use expressions cache
+      xbExp exp(xbase);
+      int rc = exp.ParseExpression(Tcl_GetString(objv[2]));
+      if (rc == XB_NO_ERROR) {
+        if (CheckRC(exp.ProcessExpression()) != TCL_OK) {
+          return TCL_ERROR;
+        }
+        switch (exp.GetReturnType()) {
+          case XB_EXP_LOGICAL: {
+            xbBool value;
+            exp.GetBoolResult(value);
+            Tcl_SetObjResult(interp, Tcl_NewIntObj(value));
+            break;
+          }
+          case XB_EXP_NUMERIC: {
+            xbDouble value;
+            exp.GetNumericResult(value);
+            Tcl_SetObjResult(interp, Tcl_NewDoubleObj(value));
+            break;
+          }
+          case XB_EXP_DATE: {
+            xbDate value;
+            exp.GetDateResult(value);
+            Tcl_AppendResult(interp, value.Str(), NULL);
+            break;
+          }
+          default: { // XB_EXP_CHAR
+            xbString value;
+            exp.GetStringResult(value);
+            Tcl_AppendResult(interp, value.Str(), NULL);
+          }
+        }
+      }
+    }
 
     break;
 
