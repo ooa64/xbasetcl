@@ -81,7 +81,7 @@ $<
 #
 #$(TMP_DIR)\tclxbase.obj: tclxbase.cpp tclxbase.hpp
 #
-#$(TMP_DIR)\tcldbf.obj: tcldbf.cpp tcldbf.hpp tcldbf3.hpp tcldbf4.hpp
+#$(TMP_DIR)\tcldbf.obj: tcldbf.cpp tcldbf.hpp
 #
 #$(TMP_DIR)\tclindex.obj: tclindex.cpp tclindex.hpp tclmdx.hpp tclndx.hpp
 #
