@@ -30,7 +30,7 @@ int TclDbf::Command (int objc, struct Tcl_Obj * const objv[])
     "name",   "alias",  "version", "status", "schema",   "autocommit", "encoding",
     "blank",  "fields", "record",  "append", "update",   "deleted",    "commit",   "abort",
     "first",  "last",   "prev",    "next",   "position", "size",
-    "index",  "filter",
+    "index",  "filter", "expr",
     0L
   };
   enum commands {
@@ -38,7 +38,7 @@ int TclDbf::Command (int objc, struct Tcl_Obj * const objv[])
     cmName,   cmAlias,  cmVersion, cmStatus, cmSchema,   cmAutocommit, cmEncoding,
     cmBlank,  cmFields, cmRecord,  cmAppend, cmUpdate,   cmDeleted,    cmCommit,   cmAbort,
     cmFirst,  cmLast,   cmPrev,    cmNext,   cmPosition, cmSize,
-    cmIndex,  cmFilter
+    cmIndex,  cmFilter, cmExpr
   };
   int index, rc;
 
@@ -455,6 +455,49 @@ int TclDbf::Command (int objc, struct Tcl_Obj * const objv[])
 
     break;
 
+  case cmExpr:
+
+    if (objc != 3) {
+      Tcl_WrongNumArgs(interp, 2, objv, "expression");
+      return TCL_ERROR;
+    } else {
+      // TODO: use expressions cache
+      xbExp exp(XBase());
+      if (CheckRC(exp.ParseExpression(dbf, Tcl_GetString(objv[2]))) != TCL_OK) {
+        return TCL_ERROR;
+      } else if (CheckRC(exp.ProcessExpression()) != TCL_OK) {
+        return TCL_ERROR;
+      } else {
+        switch (exp.GetReturnType()) {
+          case XB_EXP_LOGICAL: {
+            xbBool value;
+            exp.GetBoolResult(value);
+            Tcl_SetObjResult(interp, Tcl_NewIntObj(value));
+            break;
+          }
+          case XB_EXP_NUMERIC: {
+            xbDouble value;
+            exp.GetNumericResult(value);
+            Tcl_SetObjResult(interp, Tcl_NewDoubleObj(value));
+            break;
+          }
+          case XB_EXP_DATE: {
+            xbDate value;
+            exp.GetDateResult(value);
+            Tcl_AppendResult(interp, value.Str(), NULL);
+            break;
+          }
+          default: { // XB_EXP_CHAR
+            xbString value;
+            exp.GetStringResult(value);
+            Tcl_AppendResult(interp, value.Str(), NULL);
+          }
+        }
+      }
+    }
+
+    break;    
+
   case cmFilter:
     
     if (objc != 4) {
@@ -662,7 +705,7 @@ int TclDbf::Index (int objc, struct Tcl_Obj * const objv[]) {
             return TCL_ERROR;
           }
         }
-        if (CheckRC(dbf->CheckTagIntegrity(opt, 2)) != TCL_OK) {
+        if (CheckRC(dbf->CheckTagIntegrity(opt, 1)) != TCL_OK) {
           return TCL_ERROR;
         }
       }

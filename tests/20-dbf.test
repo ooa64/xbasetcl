@@ -3,7 +3,7 @@ package require xbasetcl
 
 namespace import tcltest::*
 
-set commands {create drop open close pack zap name alias version status schema autocommit encoding blank fields record append update deleted commit abort first last prev next position size index filter}
+set commands {create drop open close pack zap name alias version status schema autocommit encoding blank fields record append update deleted commit abort first last prev next position size index filter expr}
 
 proc test_path {args} {file nativename [file join [testsDirectory] {*}$args]}
 proc testd_setup3 {} {xbase dbf -dbf3 testd}
@@ -176,7 +176,6 @@ test dbf-2.1.5 "check dbf4 fields" -setup testd_setup4 -body {
         testd create [list [list F F 0 0]] [test_path tmp testd.dbf] testd
     } result] $result
 } -cleanup testd_cleanup -result [list 0 [test_path tmp testd.dbf]]
-
 
 foreach v {3 4} {
 
@@ -602,6 +601,18 @@ foreach v {3 4} {
 
     unset v
 }
+
+test dbf-3.1 "expr syntax" -setup testd_setup4 -body {
+    testd expr
+} -cleanup testd_cleanup -returnCodes 1 -result "wrong # args: should be \"testd expr expression\""
+
+test dbf-3.2 "db field in expr" -setup {
+    testd_setup4
+    testd create {{F N 10 0}} [test_path tmp testd.dbf] testd
+    testd append 10
+} -body {
+    list [testd expr F] [testd expr testd->F*2]
+} -cleanup testd_cleanup -result {10.0 20.0}
 
 xbase log string "STOP [info script]"
 xbase log enabled 0
