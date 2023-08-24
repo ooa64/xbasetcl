@@ -3,8 +3,6 @@
 #ifndef TCLDBF_H
 #define TCLDBF_H
 
-#include <assert.h>
-
 #include "tclxbase.hpp"
 
 const unsigned MaxFieldNameLength = 10;
@@ -19,10 +17,21 @@ class TclDbf : public TclCmd {
 
 public:
 
-  TclDbf(Tcl_Interp * interp, char * name, TclXbase * tclxbase)
-    : TclCmd(interp, name, tclxbase), dbf(NULL), encoding(NULL) {
-    assert(tclxbase);
+  TclDbf(Tcl_Interp * interp, char * name, TclXbase * tclxbase, int version)
+    : TclCmd(interp, name, tclxbase) {
+    encoding = NULL;
     Tcl_DStringInit(&dstring);
+    if (version == 3)
+      dbf = new xbDbf3(tclxbase->XBase());
+    else 
+      dbf = new xbDbf4(tclxbase->XBase());
+  };
+
+  TclDbf(Tcl_Interp * interp, char * name, TclXbase * tclxbase, xbDbf * adbf)
+    : TclCmd(interp, name, tclxbase) {
+    encoding = NULL;
+    Tcl_DStringInit(&dstring);
+    dbf = adbf;
   };
 
   virtual ~TclDbf() {

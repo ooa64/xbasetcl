@@ -1,8 +1,7 @@
 // $Id$
 
 #include "tclxbase.hpp"
-#include "tcldbf3.hpp"
-#include "tcldbf4.hpp"
+#include "tcldbf.hpp"
 
 #if defined(DEBUG) && !defined(TCLXBASE_DEBUG)
 #   undef DEBUGLOG
@@ -154,16 +153,18 @@ int TclXbase::Command (int objc, struct Tcl_Obj * CONST objv[])
       Tcl_WrongNumArgs(interp, 2, objv, "?-dbf3|-dbf4? name");
       return TCL_ERROR;
     } else if (objc > 3) {
+      int version;
       if (strcmp(Tcl_GetString(objv[2]), "-dbf3") == 0) {
-        (void) new TclDbf3(interp, Tcl_GetString(objv[3]), this);
+        version = 3;
       } else if (strcmp(Tcl_GetString(objv[2]), "-dbf4") == 0) {
-        (void) new TclDbf4(interp, Tcl_GetString(objv[3]), this);
+        version = 4;
       } else {
         Tcl_AppendResult(interp, "bad option ", Tcl_GetString(objv[2]), NULL);
         return TCL_ERROR;
       }
+      (void) new TclDbf(interp, Tcl_GetString(objv[3]), this, version);
     } else {
-      (void) new TclDbf4(interp, Tcl_GetString(objv[2]), this);
+      (void) new TclDbf(interp, Tcl_GetString(objv[2]), this, 4);
     }
     Tcl_SetObjResult(interp, objv[objc - 1]);
 
@@ -181,15 +182,7 @@ int TclXbase::Command (int objc, struct Tcl_Obj * CONST objv[])
         return TCL_ERROR;
       }
       DEBUGLOG("TclXbase cmOpen " << Tcl_GetString(objv[2]) << " as " << dbf->GetVersion());
-      if (dynamic_cast<xbDbf3*>(dbf)) {
-        (void) new TclDbf3(interp, Tcl_GetString(objv[3]), this, dynamic_cast<xbDbf3*>(dbf));
-      } else if (dynamic_cast<xbDbf4*>(dbf)) {
-        (void) new TclDbf4(interp, Tcl_GetString(objv[3]), this, dynamic_cast<xbDbf4*>(dbf));
-      } else {
-        delete dbf;
-        Tcl_AppendResult(interp, "invalid file version ", Tcl_NewIntObj(dbf->GetVersion()), NULL);
-        return TCL_ERROR;
-      }
+      (void) new TclDbf(interp, Tcl_GetString(objv[3]), this, dbf);
       Tcl_SetObjResult(interp, objv[3]);
     }
 
