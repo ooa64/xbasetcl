@@ -18,7 +18,7 @@ class TclDbf : public TclCmd {
 public:
 
   TclDbf(Tcl_Interp * interp, char * name, TclXbase * tclxbase, int version)
-    : TclCmd(interp, name, tclxbase) {
+      : TclCmd(interp, name, tclxbase) {
     encoding = NULL;
     Tcl_DStringInit(&dstring);
     if (version == 3)
@@ -28,7 +28,7 @@ public:
   };
 
   TclDbf(Tcl_Interp * interp, char * name, TclXbase * tclxbase, xbDbf * adbf)
-    : TclCmd(interp, name, tclxbase) {
+      : TclCmd(interp, name, tclxbase) {
     encoding = NULL;
     Tcl_DStringInit(&dstring);
     dbf = adbf;

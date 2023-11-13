@@ -170,7 +170,7 @@ int TclDbf::Command (int objc, struct Tcl_Obj * const objv[])
       Tcl_WrongNumArgs(interp, 2, objv, NULL);
       return TCL_ERROR;
     } else {
-      Tcl_AppendResult(interp, (const char *)dbf->GetFqFileName(), NULL);
+      Tcl_AppendResult(interp, EncodeTclString(dbf->GetFqFileName()), NULL);
     }
 
     break;
@@ -322,7 +322,7 @@ int TclDbf::Command (int objc, struct Tcl_Obj * const objv[])
     } else if (Fields(Tcl_GetObjResult(interp), NULL, (objc == 3) ? objv[2] : NULL) != TCL_OK) {
       return TCL_ERROR;
     }
-    // NOTE: xbase64-4.1.4 crashes updating unopened dbf
+    // NOTE: xbase64-4.1.5 crashes updating unopened dbf
     if (dbf->GetDbfStatus() == XB_CLOSED && index == cmUpdate) {
       Tcl_AppendResult(interp, "Database not open (crash)", NULL);
       return TCL_ERROR;
@@ -620,7 +620,7 @@ int TclDbf::Index (int objc, struct Tcl_Obj * const objv[]) {
           return TCL_ERROR;
         }
 
-        Tcl_AppendResult(interp, (const char *)dbf->GetCurIx()->GetFqFileName().Str(), NULL);
+        Tcl_AppendResult(interp, EncodeTclString(dbf->GetCurIx()->GetFqFileName().Str()), NULL);
       }
       break;
 
@@ -665,7 +665,7 @@ int TclDbf::Index (int objc, struct Tcl_Obj * const objv[]) {
         if (CheckRC(dbf->OpenIndex(ixtype, DecodeTclString(Tcl_GetString(objv[objc - 1])))) != TCL_OK) {
           return TCL_ERROR;
         }
-        Tcl_AppendResult(interp, (const char *)dbf->GetCurIx()->GetFqFileName().Str(), NULL);
+        Tcl_AppendResult(interp, EncodeTclString(dbf->GetCurIx()->GetFqFileName().Str()), NULL);
       }
       break;
 
