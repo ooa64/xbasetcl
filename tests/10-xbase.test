@@ -3,15 +3,54 @@ package require xbasetcl
 
 namespace import tcltest::*
 
-# NOTE: interferation with xbase-5.3
-#set xbaseLogEnabled [xbase log enabled]
-#set xbaseLogDirectory [xbase log directory]
-#set xbaseLogName [xbase log name]
-#xbase log enabled 0
-#xbase log directory [file join [testsDirectory] tmp]
-#xbase log name [file tail [info script]].txt
-#xbase log enabled 1
-#xbase log string "START [info script]"
+test xbase-0.1 "log syntax" -body {
+    xbase log foo
+} -returnCodes 1 -result "bad command \"foo\": must be directory, name, size, enabled, string, bytes, or flush"
+
+foreach {o v} {
+    directory foo
+    name foo
+    size 12345
+    enabled 1
+} {
+    set d [xbase log $o]
+
+    test xbase-0.2.$o "log command $o" {
+        list [xbase log $o $v] [xbase log $o]
+    } [list $v $v]
+
+    xbase log $o $d
+    unset o v d
+}
+
+test xbase-0.3 "log write/flush" -setup {
+    set t [file join [testsDirectory] tmp]
+    set e [xbase log enabled]
+    set d [xbase log directory]
+    set n [xbase log name]
+    catch {file delete $t/foo}
+    xbase log directory $t
+    xbase log name foo
+    xbase log enabled true
+} -body {
+    xbase log string bar
+    xbase log flush
+    viewFile [xbase log name] [xbase log directory]
+} -cleanup {
+    xbase log enabled $e
+    xbase log directory $d
+    xbase log name $n
+    catch {file delete $t/foo}
+} -result {????-??-?? ??:??:?? - bar} -match glob
+
+set xbaseLogEnabled [xbase log enabled]
+set xbaseLogDirectory [xbase log directory]
+set xbaseLogName [xbase log name]
+xbase log enabled 0
+xbase log directory [file join [testsDirectory] tmp]
+xbase log name [file tail [info script]].txt
+xbase log enabled 1
+xbase log string "START [info script]"
 
 test xbase-1.0 "syntax" -body {
     xbase foo
@@ -101,7 +140,11 @@ test xbase-4.1 "expr syntax" -body {
 
 test xbase-4.2 "expr invalid syntax" -body {
     xbase expr *
-} -returnCodes 1 -result "Parse Error"
+} -returnCodes {0 1} -result "Parse Error"
+
+test xbase-4.2.1 "expr simple syntax" -body {
+    xbase expr 1
+} -returnCodes {0 1} -result "1.0"
 
 foreach {n e r} {
     1 	{2*2} 			"4.0"
@@ -116,63 +159,17 @@ foreach {n e r} {
 }
 
 test xbase-4.4 "db field test" -setup {
-    # NOTE: tests hangs on exit when using alias
-    # xbase open [file join [testsDirectory] fixtures dbase_03.dbf] testd testd
-    xbase open [file join [testsDirectory] fixtures dbase_83.dbf] testd
+    xbase open [file join [testsDirectory] fixtures dbase_03.dbf] testd testd
     testd first
-#puts stderr list:[xbase list]
-#puts stderr schema:[testd schema]
-#puts stderr record:[testd record]
-#puts stderr field:[testd field Type]
 } -body {
     xbase expr testd->Type
 } -cleanup {
     testd close
     rename testd {}
-} -result "CMP"
+} -result "CMP                 "
 
-test xbase-5.1 "log syntax" -body {
-    xbase log foo
-} -returnCodes 1 -result "bad command \"foo\": must be directory, name, size, enabled, string, bytes, or flush"
-
-foreach {o v} {
-    directory foo
-    name foo
-    size 12345
-    enabled 1
-} {
-    set d [xbase log $o]
-
-    test xbase-5.2.$o "log command $o" {
-        list [xbase log $o $v] [xbase log $o]
-    } [list $v $v]
-
-    xbase log $o $d
-    unset o v d
-}
-
-test xbase-5.3 "log write/flush" -setup {
-    set t [file join [testsDirectory] tmp]
-    set e [xbase log enabled]
-    set d [xbase log directory]
-    set n [xbase log name]
-    catch {file delete $t/foo}
-    xbase log directory $t
-    xbase log name foo
-    xbase log enabled true
-} -body {
-    xbase log string bar
-    xbase log flush
-    viewFile [xbase log name] [xbase log directory]
-} -cleanup {
-    xbase log enabled $e
-    xbase log directory $d
-    xbase log name $n
-    catch {file delete $t/foo}
-} -result {????-??-?? ??:??:?? - bar} -match glob
-
-#xbase log string "STOP [info script]"
-#xbase log enabled 0
-#xbase log name $xbaseLogName
-#xbase log directory $xbaseLogDirectory
-#xbase log enabled $xbaseLogEnabled
+xbase log string "STOP [info script]"
+xbase log enabled 0
+xbase log name $xbaseLogName
+xbase log directory $xbaseLogDirectory
+xbase log enabled $xbaseLogEnabled

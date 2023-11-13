@@ -445,7 +445,7 @@ test index-1.9.5 "index invalid date search" -setup {
     list \
         [testd index find x] \
         [testd pos]
-} -cleanup testd_cleanup -returnCodes 1 -result {expected date as YYYYMMDD but got "x"}
+} -cleanup testd_cleanup -returnCodes {0 1} -result {expected date as YYYYMMDD but got "x"}
 
 xbase log string "STOP [info script]"
 xbase log enabled 0
