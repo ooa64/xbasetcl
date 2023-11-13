@@ -86,36 +86,61 @@ int TclXbase::Command (int objc, struct Tcl_Obj * CONST objv[])
       Tcl_WrongNumArgs(interp, 2, objv, "expression");
       return TCL_ERROR;
     } else {
-      // TODO: use expressions cache
-      xbExp exp(xbase);
-      if (CheckRC(exp.ParseExpression(Tcl_GetString(objv[2]))) != TCL_OK) {
+      char * expression = Tcl_GetString(objv[2]);
+
+      // NOTE: one exp for one call, crashed otherwise
+      delete exp;
+      exp = new xbExp(xbase);
+      if (CheckRC(exp->ParseExpression(DecodeTclString(expression))) != TCL_OK) {
         return TCL_ERROR;
-      } else if (CheckRC(exp.ProcessExpression()) != TCL_OK) {
+      }
+      // end of workaround
+
+//       if (expCache == NULL || strcmp(expCache, expression) != 0) {
+// DEBUGLOG("*** parse " << expression);
+// DEBUGLOG("*** parse decoded " << DecodeTclString(expression));
+// DEBUGLOG("*** exp " << exp);
+// DEBUGLOG("*** exp cache " << (expCache ? expCache : "null"));
+// DEBUGLOG("*** exp tree " << exp->GetTreeHandle());
+//         if (CheckRC(exp->ParseExpression(DecodeTclString(expression))) != TCL_OK) {
+// DEBUGLOG("*** error ");
+//           return TCL_ERROR;
+//         }
+// DEBUGLOG("*** exp tree " << exp->GetTreeHandle());
+// DEBUGLOG("*** exp cache replace " << (expCache ? expCache : "null") << " by " << expression);
+//         if (expCache != NULL) {
+//           Tcl_Free(expCache);
+//         }
+//         expCache = strcpy(Tcl_Alloc(strlen(expression)+1), expression);
+// DEBUGLOG("*** exp cache " << (expCache ? expCache : "null"));
+//       }
+
+      if (CheckRC(exp->ProcessExpression()) != TCL_OK) {
         return TCL_ERROR;
       } else {
-        switch (exp.GetReturnType()) {
+        switch (exp->GetReturnType()) {
           case XB_EXP_LOGICAL: {
             xbBool value;
-            exp.GetBoolResult(value);
+            exp->GetBoolResult(value);
             Tcl_SetObjResult(interp, Tcl_NewIntObj(value));
             break;
           }
           case XB_EXP_NUMERIC: {
             xbDouble value;
-            exp.GetNumericResult(value);
+            exp->GetNumericResult(value);
             Tcl_SetObjResult(interp, Tcl_NewDoubleObj(value));
             break;
           }
           case XB_EXP_DATE: {
             xbDate value;
-            exp.GetDateResult(value);
-            Tcl_AppendResult(interp, value.Str(), NULL);
+            exp->GetDateResult(value);
+            Tcl_AppendResult(interp, EncodeTclString(value.Str()), NULL);
             break;
           }
           default: { // XB_EXP_CHAR
             xbString value;
-            exp.GetStringResult(value);
-            Tcl_AppendResult(interp, value.Str(), NULL);
+            exp->GetStringResult(value);
+            Tcl_AppendResult(interp, EncodeTclString(value.Str()), NULL);
           }
         }
       }
@@ -140,7 +165,7 @@ int TclXbase::Command (int objc, struct Tcl_Obj * CONST objv[])
         xbDbf * dbf = xbase->GetDbfPtr(i);
         if (dbf) {
           Tcl_ListObjAppendElement(NULL, result, 
-              Tcl_NewStringObj((const char *)dbf->GetFqFileName(), -1));
+              Tcl_NewStringObj(EncodeTclString(dbf->GetFqFileName()), -1));
         }
       }
     }

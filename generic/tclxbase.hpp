@@ -2,6 +2,7 @@
 #define TCLXBASE_H
 
 #include <xbase.h>
+#include <xbexp.h>
 #include <tcl.h>
 
 #include "tclcmd.hpp"
@@ -16,15 +17,37 @@ class TclXbase : public TclCmd {
 
 public:
 
-  TclXbase(Tcl_Interp * interp, CONST char * name) :
-    TclCmd(interp, name), encoding(NULL), xbase(new xbXBase()) {};
+  TclXbase(Tcl_Interp * interp, CONST char * name) : TclCmd(interp, name) {
+    Tcl_DStringInit(&dstring);
+    encoding = NULL;
+    xbase = new xbXBase();
+    exp = new xbExp(xbase);
+    expCache = NULL;
+  };
   
   virtual ~TclXbase() {
+    Tcl_DStringFree(&dstring);
     Tcl_FreeEncoding(encoding);
+    if (expCache) Tcl_Free(expCache);
+    delete exp;
     delete xbase;
   };
 
-  Tcl_Encoding Encoding() {return encoding;};
+  inline Tcl_Encoding Encoding() {return encoding;};
+
+  inline const char * EncodeTclString(const char * s) {
+    // make Tcl string from C string
+    Tcl_DStringFree(&dstring);
+    Tcl_ExternalToUtfDString(encoding, s, -1, &dstring);
+    return Tcl_DStringValue(&dstring);
+  };
+
+  inline const char * DecodeTclString(const char * s) {
+    // make C string from Tcl string
+    Tcl_DStringFree(&dstring);
+    Tcl_UtfToExternalDString(encoding, s, -1, &dstring);
+    return Tcl_DStringValue(&dstring);
+  };  
 
   xbXBase * XBase() {return xbase;};
 
@@ -40,10 +63,13 @@ public:
 protected:
 
   xbXBase * xbase;
+  xbExp * exp;
+  char * expCache;
 
 private:
 
   Tcl_Encoding encoding;
+  Tcl_DString dstring;  
 
   virtual void Cleanup();
   virtual int Command (int objc, struct Tcl_Obj * CONST objv[]);
