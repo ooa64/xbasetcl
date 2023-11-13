@@ -728,7 +728,7 @@ int TclDbf::Index (int objc, struct Tcl_Obj * const objv[]) {
         }
         xbIx * ix = NULL;
         void * tag = NULL;
-        if (CheckRC(dbf->Reindex(opt, 1, &ix, &tag)) != TCL_OK) {
+        if (CheckRC(dbf->Reindex(opt, &ix, &tag)) != TCL_OK) {
           return TCL_ERROR;
         }
       }
